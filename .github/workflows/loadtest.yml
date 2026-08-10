@@ -1,0 +1,99 @@
+name: Load Test
+
+# Bisa di-trigger manual dari tab Actions di GitHub (web/app, termasuk dari HP),
+# atau lewat GitHub API (nanti dipanggil dari Cloudflare Worker).
+on:
+  workflow_dispatch:
+    inputs:
+      target_hosts:
+        description: "Target host (bisa lebih dari satu, pisah koma)"
+        required: true
+        type: string
+      users:
+        description: "Jumlah simulasi user"
+        required: false
+        default: "20"
+        type: string
+      duration_minutes:
+        description: "Durasi test (menit)"
+        required: false
+        default: "3"
+        type: string
+      spawn_rate:
+        description: "User baru per detik saat ramp-up"
+        required: false
+        default: "5"
+        type: string
+
+# Cegah dua load test jalan bersamaan (biar nggak rebutan resource runner
+# dan biar results/latest.json nggak ketimpa race condition)
+concurrency:
+  group: loadtest
+  cancel-in-progress: false
+
+jobs:
+  run-loadtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Run Locust load test
+        env:
+          TARGET_HOSTS: ${{ inputs.target_hosts }}
+          RESULTS_PATH: results/latest.json
+        run: |
+          locust -f locustfile.py \
+            --target-hosts="$TARGET_HOSTS" \
+            --headless \
+            --users "${{ inputs.users }}" \
+            --spawn-rate "${{ inputs.spawn_rate }}" \
+            --run-time "${{ inputs.duration_minutes }}m" \
+            --only-summary \
+            --exit-code-on-error 0
+
+      - name: Show result summary
+        if: always()
+        run: |
+          if [ -f results/latest.json ]; then
+            cat results/latest.json
+          else
+            echo "results/latest.json tidak ditemukan - test kemungkinan gagal sebelum selesai."
+          fi
+
+      # Commit hasil JSON ke repo supaya frontend (GitHub Pages) bisa fetch
+      # langsung dari raw file tanpa perlu backend tambahan.
+      - name: Commit result to repo
+        if: always()
+        run: |
+          if [ ! -f results/latest.json ]; then
+            echo "Tidak ada hasil untuk di-commit."
+            exit 0
+          fi
+          git config user.name "loadtest-bot"
+          git config user.email "loadtest-bot@users.noreply.github.com"
+          git add results/latest.json
+          git diff --staged --quiet && echo "Tidak ada perubahan." || git commit -m "chore: update hasil load test [skip ci]"
+          git push
+
+      # Simpan juga sebagai artifact - berguna kalau push ke repo gagal
+      # (misal karena race condition) atau kamu mau download hasil mentahnya.
+      - name: Upload result as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loadtest-result
+          path: results/latest.json
+          retention-days: 30
