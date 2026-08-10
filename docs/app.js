@@ -19,9 +19,16 @@ const form = document.getElementById('test-form');
 const urlInput = document.getElementById('target-url');
 const urlError = document.getElementById('url-error');
 const userCount = document.getElementById('user-count');
+const spawnRate = document.getElementById('spawn-rate');
 const duration = document.getElementById('duration');
 const submitBtn = document.getElementById('submit-btn');
 const triggerError = document.getElementById('trigger-error');
+
+// status bar (ala Locust: Host / Status / RPS / Failures)
+const statusHost = document.getElementById('status-host');
+const statusState = document.getElementById('status-state');
+const statusRps = document.getElementById('status-rps');
+const statusFailures = document.getElementById('status-failures');
 
 const formCard = document.getElementById('form-card');
 const runningCard = document.getElementById('running-card');
@@ -37,10 +44,15 @@ const runningLogLink = document.getElementById('running-log-link');
 
 const resultTarget = document.getElementById('result-target');
 const resultMeta = document.getElementById('result-meta');
+const resultGeneratedAt = document.getElementById('result-generated-at');
 const chartCard = document.getElementById('chart-card');
+const statusChipsCard = document.getElementById('status-chips-card');
+const statusChipsWrap = document.getElementById('status-chips');
+const breakdownFilter = document.getElementById('breakdown-filter');
 
 let chartInstance = null;
 let pollTimer = null;
+let lastBreakdownRows = []; // dipakai ulang saat filter berubah
 
 // ---- basic url validation ----
 function normalizeUrl(raw) {
@@ -84,31 +96,60 @@ form.addEventListener('submit', (e) => {
   triggerError.classList.add('hidden');
 
   const users = Math.max(1, parseInt(userCount.value, 10) || 20);
+  const rate = Math.max(1, parseInt(spawnRate.value, 10) || 5);
   const dur = Math.max(1, parseInt(duration.value, 10) || 3);
 
-  startRun(hosts, users, dur);
+  startRun(hosts, users, rate, dur);
 });
 
 resetBtn.addEventListener('click', () => {
   if (pollTimer) clearTimeout(pollTimer);
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+  lastBreakdownRows = [];
   resultsSection.classList.add('hidden');
   formCard.classList.remove('hidden');
   submitBtn.disabled = false;
-  submitBtn.textContent = 'Mulai load test';
+  submitBtn.textContent = 'START';
   urlInput.value = '';
   urlInput.focus();
+  setStatusBar({ host: '—', state: 'IDLE', rps: '—', failures: '—' });
 });
 
+// ---- status bar helper ----
+function setStatusBar({ host, state, rps, failures }) {
+  if (host !== undefined) statusHost.textContent = host;
+  if (state !== undefined) {
+    statusState.textContent = state;
+    statusState.className = 'text-xs font-mono font-semibold ' + stateColorClass(state);
+  }
+  if (rps !== undefined) statusRps.textContent = rps;
+  if (failures !== undefined) statusFailures.textContent = failures;
+}
+
+function stateColorClass(state) {
+  switch (state) {
+    case 'RUNNING': return 'text-signal-go';
+    case 'QUEUED': return 'text-signal-warn';
+    case 'DONE': return 'text-signal-go';
+    case 'FAILED': return 'text-signal-stop';
+    default: return 'text-ink-500';
+  }
+}
+
 // ---- run flow ----
-async function startRun(hosts, users, dur) {
+async function startRun(hosts, users, rate, dur) {
   formCard.classList.add('hidden');
   runningCard.classList.remove('hidden');
   resultsSection.classList.add('hidden');
   runningLogLink.classList.add('hidden');
 
   const targetLabel = hosts.join(', ');
-  runningTarget.textContent = `${targetLabel} · ${users} user · ${dur} menit`;
+  runningTarget.textContent = `${targetLabel} · ${users} user · ramp ${rate}/s · ${dur} menit`;
   setRunningStage('trigger');
+  setStatusBar({ host: targetLabel, state: 'QUEUED', rps: '—', failures: '—' });
 
   try {
     const res = await fetch(`${WORKER_URL}/trigger`, {
@@ -117,6 +158,7 @@ async function startRun(hosts, users, dur) {
       body: JSON.stringify({
         target_hosts: hosts.join(','),
         users,
+        spawn_rate: rate,
         duration_minutes: dur,
       }),
     });
@@ -130,6 +172,7 @@ async function startRun(hosts, users, dur) {
     setRunningStage('queued');
     pollStatus(targetLabel, users, dur);
   } catch (err) {
+    setStatusBar({ state: 'FAILED' });
     showTriggerError(err.message || 'Gagal menghubungi Worker.');
   }
 }
@@ -178,14 +221,18 @@ function pollStatus(targetLabel, users, dur) {
         if (data.status === 'completed') {
           setRunningStage('completed');
           if (data.conclusion === 'success') {
+            setStatusBar({ state: 'DONE' });
             await fetchAndShowResults(targetLabel, users, dur);
           } else {
+            setStatusBar({ state: 'FAILED' });
             showTriggerError(`Run selesai dengan status "${data.conclusion}". Cek log run untuk detail.`);
           }
           return; // stop polling
         }
 
-        setRunningStage(data.status === 'queued' ? 'queued' : 'in_progress');
+        const stage = data.status === 'queued' ? 'queued' : 'in_progress';
+        setRunningStage(stage);
+        setStatusBar({ state: stage === 'queued' ? 'QUEUED' : 'RUNNING' });
       }
     } catch (err) {
       // Kegagalan jaringan sesaat: jangan hentikan polling, coba lagi.
@@ -224,9 +271,25 @@ function showResults(data, targetLabel) {
     `${durText} · ${data.endpoints_tested ?? 0} endpoint diuji` +
     (data.endpoints_skipped ? ` · ${data.endpoints_skipped} di-skip` : '');
 
+  resultGeneratedAt.textContent = formatGeneratedAt(data.generated_at);
+
   renderStats(data);
+  renderStatusChips(data);
   renderBreakdown(data);
   renderTimelineChart(data);
+}
+
+function formatGeneratedAt(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    return 'dijalankan ' + d.toLocaleString('id-ID', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }) + ' WIB';
+  } catch {
+    return '';
+  }
 }
 
 function renderStats(data) {
@@ -238,6 +301,10 @@ function renderStats(data) {
     (data.total_failures ?? 0).toLocaleString('id-ID');
   document.getElementById('stat-avg').textContent =
     (data.avg_response_ms ?? 0) + 'ms';
+  document.getElementById('stat-endpoints-tested').textContent =
+    (data.endpoints_tested ?? 0).toLocaleString('id-ID');
+  document.getElementById('stat-endpoints-skipped').textContent =
+    (data.endpoints_skipped ?? 0).toLocaleString('id-ID');
 }
 
 // ---- chart: animasikan timeline snapshot dari locustfile.py ----
@@ -333,6 +400,7 @@ function renderTimelineChart(data) {
 
 const EVENT_STYLES = {
   SUCCESS: 'bg-signal-goBg text-signal-go',
+  RETRY: 'bg-signal-goBg text-signal-go',
   AUTH_EXPIRED: 'bg-signal-warnBg text-signal-warn',
   EDGE_LIMIT: 'bg-signal-warnBg text-signal-warn',
   APP_LIMIT: 'bg-signal-warnBg text-signal-warn',
@@ -340,7 +408,14 @@ const EVENT_STYLES = {
   EDGE_DOWN: 'bg-signal-stopBg text-signal-stop',
   SERVER_ERROR: 'bg-signal-stopBg text-signal-stop',
   EDGE_ERROR: 'bg-signal-stopBg text-signal-stop',
+  SERVER_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
+  EDGE_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
   NOT_FOUND: 'bg-ink-100 text-ink-700',
+  FORBIDDEN: 'bg-signal-stopBg text-signal-stop',
+  WAF_BLOCKED: 'bg-signal-stopBg text-signal-stop',
+  CONFLICT: 'bg-signal-warnBg text-signal-warn',
+  BAD_REQUEST: 'bg-signal-warnBg text-signal-warn',
+  LEGAL_BLOCKED: 'bg-ink-100 text-ink-700',
   SOFT_BLOCKED: 'bg-signal-stopBg text-signal-stop',
   VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn',
   METHOD_ERROR: 'bg-signal-warnBg text-signal-warn',
@@ -348,25 +423,130 @@ const EVENT_STYLES = {
   DEFAULT: 'bg-ink-100 text-ink-700',
 };
 
+function getBadgeClass(eventType) {
+  if (EVENT_STYLES[eventType]) return EVENT_STYLES[eventType];
+  if (eventType && eventType.startsWith('CLIENT_ERROR_')) return 'bg-signal-stopBg text-signal-stop';
+  return EVENT_STYLES.DEFAULT;
+}
+
+// ---- parsing "name" string dari Locust jadi field terpisah ----
+// Format asli dari locustfile.py, salah satu dari:
+//   "host [status/origin]"            -> mis. "api.example.com [403/cloudflare]"
+//   "host [status/origin @attempt N]" -> retry/transient
+//   "host [RECOVERED after Nx ...]"   -> retry sukses
+//   "host [conn_error @attempt N]"    -> koneksi gagal total
+//   "host"                            -> tanpa bracket sama sekali (exception akhir)
+function parseEventName(name) {
+  if (!name) return { host: '', statusCode: null, origin: null };
+
+  const bracketMatch = name.match(/^(.*?)\s*\[([^\]]*)\]\s*$/);
+  if (!bracketMatch) {
+    return { host: name.trim(), statusCode: null, origin: null };
+  }
+
+  const host = bracketMatch[1].trim();
+  const inner = bracketMatch[2]; // mis. "403/cloudflare" atau "403/cloudflare @attempt 2"
+
+  const statusMatch = inner.match(/^(\d{3})\/?([a-z-]+)?/i);
+  if (statusMatch) {
+    return {
+      host,
+      statusCode: statusMatch[1],
+      origin: statusMatch[2] || null,
+    };
+  }
+
+  // kasus non-status: RECOVERED, conn_error, soft-block, dst — tampilkan apa adanya
+  return { host, statusCode: null, origin: inner };
+}
+
+function renderStatusChips(data) {
+  const breakdown = Array.isArray(data.breakdown) ? data.breakdown : [];
+  const counts = {};
+
+  for (const row of breakdown) {
+    const { statusCode } = parseEventName(row.endpoint);
+    const key = statusCode || row.event_type; // fallback ke event_type kalau nggak ada status code
+    counts[key] = (counts[key] || 0) + row.count;
+  }
+
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    statusChipsCard.classList.add('hidden');
+    return;
+  }
+
+  statusChipsCard.classList.remove('hidden');
+  statusChipsWrap.innerHTML = entries.map(([code, count]) => {
+    const isNumericStatus = /^\d{3}$/.test(code);
+    let colorClass = 'bg-ink-100 text-ink-700';
+    if (isNumericStatus) {
+      const n = parseInt(code, 10);
+      if (n >= 200 && n < 300) colorClass = 'bg-signal-goBg text-signal-go';
+      else if (n === 429 || (n >= 300 && n < 400)) colorClass = 'bg-signal-warnBg text-signal-warn';
+      else if (n >= 400) colorClass = 'bg-signal-stopBg text-signal-stop';
+    }
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium ${colorClass}">
+      <span>${code}</span>
+      <span class="opacity-60">·</span>
+      <span>${count.toLocaleString('id-ID')}</span>
+    </span>`;
+  }).join('');
+}
+
 function renderBreakdown(data) {
+  const breakdown = Array.isArray(data.breakdown) ? data.breakdown : [];
+  lastBreakdownRows = [...breakdown].sort((a, b) => b.count - a.count);
+
+  populateBreakdownFilter(lastBreakdownRows);
+  applyBreakdownFilter();
+}
+
+function populateBreakdownFilter(rows) {
+  const eventTypes = [...new Set(rows.map(r => r.event_type))].sort();
+  const current = breakdownFilter.value || 'all';
+
+  breakdownFilter.innerHTML = '<option value="all">Semua event</option>' +
+    eventTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  // pertahankan pilihan filter kalau masih valid, reset ke "all" kalau nggak ada di run baru
+  breakdownFilter.value = eventTypes.includes(current) ? current : 'all';
+}
+
+breakdownFilter.addEventListener('change', applyBreakdownFilter);
+
+function applyBreakdownFilter() {
+  const filterValue = breakdownFilter.value;
+  const rows = filterValue === 'all'
+    ? lastBreakdownRows
+    : lastBreakdownRows.filter(r => r.event_type === filterValue);
+
   const tbody = document.getElementById('breakdown-body');
   tbody.innerHTML = '';
 
-  const breakdown = Array.isArray(data.breakdown) ? data.breakdown : [];
-  const sorted = [...breakdown].sort((a, b) => b.count - a.count);
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-ink-500 text-xs">Tidak ada data untuk filter ini.</td></tr>`;
+    return;
+  }
 
-  for (const row of sorted) {
+  for (const row of rows) {
+    const { host, statusCode, origin } = parseEventName(row.endpoint);
     const tr = document.createElement('tr');
     tr.className = 'hover:bg-ink-100/40 transition-colors';
-    const badgeClass = EVENT_STYLES[row.event_type] || EVENT_STYLES.DEFAULT;
+    const badgeClass = getBadgeClass(row.event_type);
 
     tr.innerHTML = `
       <td class="px-6 py-3">
         <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold font-mono ${badgeClass}">${row.event_type}</span>
       </td>
-      <td class="px-6 py-3 text-ink-500 font-mono text-xs truncate max-w-[220px]">${row.endpoint}</td>
+      <td class="px-6 py-3 text-ink-500 font-mono text-xs truncate max-w-[180px]" title="${row.endpoint}">${host || row.endpoint}</td>
+      <td class="px-6 py-3 font-mono text-xs text-ink-700">${statusCode ?? '—'}</td>
+      <td class="px-6 py-3 font-mono text-xs text-ink-500">${origin ?? '—'}</td>
       <td class="px-6 py-3 text-right font-mono">${row.count.toLocaleString('id-ID')}</td>
       <td class="px-6 py-3 text-right font-mono text-ink-500">${row.avg_ms}</td>
+      <td class="px-6 py-3 text-right font-mono text-ink-300">${row.min_ms ?? '—'}</td>
+      <td class="px-6 py-3 text-right font-mono text-ink-300">${row.max_ms ?? '—'}</td>
     `;
     tbody.appendChild(tr);
   }

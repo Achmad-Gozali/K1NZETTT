@@ -16,26 +16,32 @@
       theme: {
         extend: {
           colors: {
+            surface: {
+              900: '#0B0F0E',
+              800: '#121715',
+              700: '#1A211E',
+              600: '#1F2622',
+              border: '#232B27',
+            },
             ink: {
-              900: '#0F172A',
-              700: '#334155',
-              500: '#64748B',
-              300: '#CBD5E1',
-              100: '#E2E8F0',
-              50: '#F8FAFC',
+              900: '#E8ECEA',
+              700: '#B7C0BC',
+              500: '#8A9591',
+              300: '#5C6763',
+              100: '#2A302D',
             },
             signal: {
-              go: '#0D9488',
-              goBg: '#F0FDFA',
-              warn: '#D97706',
-              warnBg: '#FFFBEB',
-              stop: '#DC2626',
-              stopBg: '#FEF2F2',
+              go: '#14B8A6',
+              goBg: 'rgba(20,184,166,0.10)',
+              warn: '#F59E0B',
+              warnBg: 'rgba(245,158,11,0.10)',
+              stop: '#EF4444',
+              stopBg: 'rgba(239,68,68,0.10)',
             },
           },
           boxShadow: {
-            card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)',
-            cardHover: '0 1px 2px rgba(15,23,42,0.04), 0 16px 32px -12px rgba(15,23,42,0.14)',
+            card: '0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -12px rgba(0,0,0,0.5)',
+            cardHover: '0 1px 2px rgba(0,0,0,0.2), 0 16px 32px -12px rgba(0,0,0,0.6)',
           },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
@@ -46,12 +52,12 @@
     };
   </script>
 </head>
-<body class="bg-ink-50 text-ink-900 font-sans antialiased">
+<body class="bg-surface-900 text-ink-900 font-sans antialiased">
 
   <div class="max-w-3xl mx-auto px-6 py-14 md:py-24">
 
-    <!-- ===== Header ===== -->
-    <header class="mb-10 flex items-center justify-between">
+    <!-- ===== Header + status bar ===== -->
+    <header class="mb-10 flex items-start justify-between gap-6 flex-wrap">
       <div>
         <div class="flex items-center gap-2 mb-2">
           <span class="w-1.5 h-1.5 rounded-full bg-signal-go"></span>
@@ -59,66 +65,98 @@
         </div>
         <h1 class="text-[28px] font-semibold tracking-tight text-ink-900">Load Test</h1>
       </div>
-      <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
-         class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
-        actions log ↗
-      </a>
+
+      <!-- Status bar: Host / Status / RPS / Failures (ala Locust) -->
+      <div id="status-bar" class="flex items-stretch gap-0 bg-surface-800 border border-surface-border rounded-xl overflow-hidden">
+        <div class="px-4 py-2.5 border-r border-surface-border">
+          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Host</p>
+          <p id="status-host" class="text-xs font-mono text-ink-900 max-w-[140px] truncate">—</p>
+        </div>
+        <div class="px-4 py-2.5 border-r border-surface-border">
+          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Status</p>
+          <p id="status-state" class="text-xs font-mono font-semibold text-ink-500">IDLE</p>
+        </div>
+        <div class="px-4 py-2.5 border-r border-surface-border">
+          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">RPS</p>
+          <p id="status-rps" class="text-xs font-mono text-ink-500">—</p>
+        </div>
+        <div class="px-4 py-2.5">
+          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Failures</p>
+          <p id="status-failures" class="text-xs font-mono text-ink-500">—</p>
+        </div>
+      </div>
     </header>
 
     <!-- ===== Form Card ===== -->
-    <section id="form-card" class="bg-white border border-ink-100 rounded-2xl shadow-card p-7 md:p-10">
+    <section id="form-card" class="bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7 md:p-10">
       <form id="test-form" class="space-y-7">
 
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2.5">
+              Number of users
+            </label>
+            <input
+              id="user-count" type="number" min="1" value="20"
+              class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
+                     placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
+                     transition-all"
+            />
+            <p class="mt-2 text-[11px] text-ink-500">Peak concurrency</p>
+          </div>
+          <div>
+            <label for="spawn-rate" class="block text-sm font-medium text-ink-700 mb-2.5">
+              Ramp up
+            </label>
+            <input
+              id="spawn-rate" type="number" min="1" value="5"
+              class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
+                     placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
+                     transition-all"
+            />
+            <p class="mt-2 text-[11px] text-ink-500">Users started/second</p>
+          </div>
+        </div>
+
         <div>
-          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2.5">
-            Target URL
+          <label for="duration" class="block text-sm font-medium text-ink-700 mb-2.5">
+            Run time (menit)
+          </label>
+          <input
+            id="duration" type="number" min="1" value="3"
+            class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
+                   focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go transition-all"
+          />
+        </div>
+
+        <!-- Target Hosts — equivalent "Custom parameters" Locust -->
+        <div class="pt-2 border-t border-surface-border">
+          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2.5 mt-6">
+            Target Hosts
           </label>
           <input
             id="target-url"
             type="text"
             placeholder="example.com"
             autocomplete="off"
-            class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
-                   placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white
+            class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
+                   placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
                    transition-all"
           />
           <p id="url-error" class="hidden mt-2.5 text-xs font-mono text-signal-stop">
             URL tidak valid — coba format seperti example.com
           </p>
           <p class="mt-2.5 text-xs text-ink-500">
-            Bisa lebih dari satu host, pisahkan dengan koma.
+            Daftar host, dipisah koma. Contoh: example.com,other.com
           </p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2.5">
-              Simulasi user
-            </label>
-            <input
-              id="user-count" type="number" min="1" value="20"
-              class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
-                     focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white transition-all"
-            />
-          </div>
-          <div>
-            <label for="duration" class="block text-sm font-medium text-ink-700 mb-2.5">
-              Durasi (menit)
-            </label>
-            <input
-              id="duration" type="number" min="1" value="3"
-              class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
-                     focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white transition-all"
-            />
-          </div>
         </div>
 
         <button
           id="submit-btn" type="submit"
-          class="w-full py-4 rounded-xl bg-ink-900 text-white text-sm font-medium tracking-wide
-                 hover:bg-ink-700 hover:shadow-cardHover active:scale-[0.99] transition-all duration-150"
+          class="w-full py-4 rounded-xl bg-signal-go text-surface-900 text-sm font-semibold tracking-wide
+                 hover:brightness-110 hover:shadow-cardHover active:scale-[0.99] transition-all duration-150"
         >
-          Mulai load test
+          START
         </button>
 
         <p id="trigger-error" class="hidden text-xs font-mono text-signal-stop text-center"></p>
@@ -126,14 +164,14 @@
     </section>
 
     <!-- ===== Running Card ===== -->
-    <section id="running-card" class="hidden bg-white border border-ink-100 rounded-2xl shadow-card p-7 md:p-10">
+    <section id="running-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7 md:p-10">
       <div class="flex items-center justify-between mb-1.5">
         <span id="running-title" class="text-sm font-medium text-ink-900">Menunggu runner…</span>
         <span id="running-pct" class="text-xs font-mono text-ink-500">0%</span>
       </div>
       <p id="running-target" class="text-xs font-mono text-ink-500 mb-6 truncate"></p>
 
-      <div class="h-1.5 w-full bg-ink-100 rounded-full overflow-hidden mb-6">
+      <div class="h-1.5 w-full bg-surface-600 rounded-full overflow-hidden mb-6">
         <div id="progress-bar" class="h-full bg-signal-go rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
       </div>
 
@@ -142,7 +180,7 @@
       </p>
 
       <a id="running-log-link" href="#" target="_blank" rel="noopener"
-         class="hidden mt-5 inline-block text-xs font-mono text-ink-500 hover:text-ink-900 underline decoration-ink-300 underline-offset-4">
+         class="hidden mt-5 inline-block text-xs font-mono text-ink-500 hover:text-signal-go underline decoration-ink-300 underline-offset-4">
         lihat log run ↗
       </a>
     </section>
@@ -154,59 +192,91 @@
         <div>
           <p id="result-target" class="text-sm font-mono text-ink-900 truncate max-w-md"></p>
           <p id="result-meta" class="text-xs text-ink-500 mt-1"></p>
+          <p id="result-generated-at" class="text-[11px] font-mono text-ink-300 mt-0.5"></p>
         </div>
-        <button id="reset-btn" class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
+        <button id="reset-btn" class="text-xs font-mono text-ink-500 hover:text-signal-go transition-colors underline decoration-ink-300 underline-offset-4">
           test baru
         </button>
       </div>
 
       <!-- Stats grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
           <p class="text-xs text-ink-500 mb-1.5">Total request</p>
           <p id="stat-total" class="text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
-        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
           <p class="text-xs text-ink-500 mb-1.5">Sukses</p>
           <p id="stat-success" class="text-2xl font-mono font-semibold text-signal-go">—</p>
         </div>
-        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
           <p class="text-xs text-ink-500 mb-1.5">Gagal</p>
           <p id="stat-failed" class="text-2xl font-mono font-semibold text-signal-stop">—</p>
         </div>
-        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
           <p class="text-xs text-ink-500 mb-1.5">Avg response</p>
           <p id="stat-avg" class="text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
       </div>
 
-      <!-- Timeline chart -->
-      <div id="chart-card" class="hidden bg-white border border-ink-100 rounded-2xl shadow-card p-7">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Endpoint diuji</p>
+          <p id="stat-endpoints-tested" class="text-lg font-mono font-semibold text-ink-900">—</p>
+        </div>
+        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Endpoint di-skip</p>
+          <p id="stat-endpoints-skipped" class="text-lg font-mono font-semibold text-ink-500">—</p>
+        </div>
+      </div>
+
+      <div id="status-chips-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-6">
+        <p class="text-sm font-medium text-ink-900 mb-4">Sebaran status code</p>
+        <div id="status-chips" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div id="chart-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7">
         <p class="text-sm font-medium text-ink-900 mb-5">Response time & RPS selama test</p>
         <canvas id="response-chart" height="90"></canvas>
       </div>
 
-      <!-- Breakdown table -->
-      <div class="bg-white border border-ink-100 rounded-2xl shadow-card overflow-hidden">
-        <div class="px-7 py-5 border-b border-ink-100">
+      <div class="bg-surface-800 border border-surface-border rounded-2xl shadow-card overflow-hidden">
+        <div class="px-7 py-5 border-b border-surface-border flex items-center justify-between gap-3">
           <p class="text-sm font-medium text-ink-900">Breakdown per event</p>
+          <select id="breakdown-filter"
+            class="text-xs font-mono border border-surface-border rounded-lg px-2.5 py-1.5 bg-surface-900 text-ink-700
+                   focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go">
+            <option value="all">Semua event</option>
+          </select>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left text-xs text-ink-500 border-b border-ink-100">
-                <th class="px-7 py-3.5 font-medium">Event</th>
-                <th class="px-7 py-3.5 font-medium">Endpoint</th>
-                <th class="px-7 py-3.5 font-medium text-right">Count</th>
-                <th class="px-7 py-3.5 font-medium text-right">Avg ms</th>
+              <tr class="text-left text-xs text-ink-500 border-b border-surface-border">
+                <th class="px-6 py-3.5 font-medium">Event</th>
+                <th class="px-6 py-3.5 font-medium">Host</th>
+                <th class="px-6 py-3.5 font-medium">Status</th>
+                <th class="px-6 py-3.5 font-medium">Origin</th>
+                <th class="px-6 py-3.5 font-medium text-right">Count</th>
+                <th class="px-6 py-3.5 font-medium text-right">Avg ms</th>
+                <th class="px-6 py-3.5 font-medium text-right">Min ms</th>
+                <th class="px-6 py-3.5 font-medium text-right">Max ms</th>
               </tr>
             </thead>
-            <tbody id="breakdown-body" class="divide-y divide-ink-100"></tbody>
+            <tbody id="breakdown-body" class="divide-y divide-surface-border"></tbody>
           </table>
         </div>
       </div>
 
     </section>
+
+    <footer class="mt-16 flex items-center justify-between text-[11px] font-mono text-ink-300">
+      <span>k1nzettt / load test runner</span>
+      <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
+         class="hover:text-signal-go transition-colors underline decoration-ink-100 underline-offset-4">
+        actions log ↗
+      </a>
+    </footer>
 
   </div>
 
