@@ -1,16 +1,27 @@
 // ============================================================
-// matchastress — frontend logic
-// NOTE: Bagian "runTest()" saat ini pakai simulasi (mock).
-// Nanti diganti manggil Cloudflare Worker -> GitHub Actions
-// yang menjalankan locustfile.py beneran, lalu fetch hasil JSON-nya.
+// K1NZETTT — frontend logic
+// Alur: trigger workflow via Worker -> polling status run ->
+// fetch results/latest.json asli dari GitHub -> render hasil.
 // ============================================================
 
+const WORKER_URL = "https://k1nzettproxy.achmadgozali.workers.dev";
+const REPO_OWNER = "Achmad-Gozali";
+const REPO_NAME = "K1NZETTT";
+const REPO_BRANCH = "main";
+const RESULTS_RAW_URL =
+  `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/results/latest.json`;
+
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 30 * 60 * 1000; // 30 menit, samain dengan timeout job di loadtest.yml
+
+// ---- elements ----
 const form = document.getElementById('test-form');
 const urlInput = document.getElementById('target-url');
 const urlError = document.getElementById('url-error');
 const userCount = document.getElementById('user-count');
 const duration = document.getElementById('duration');
 const submitBtn = document.getElementById('submit-btn');
+const triggerError = document.getElementById('trigger-error');
 
 const formCard = document.getElementById('form-card');
 const runningCard = document.getElementById('running-card');
@@ -18,13 +29,18 @@ const resultsSection = document.getElementById('results');
 const resetBtn = document.getElementById('reset-btn');
 
 const progressBar = document.getElementById('progress-bar');
-const bowlFill = document.getElementById('bowl-fill');
 const runningTitle = document.getElementById('running-title');
 const runningDetail = document.getElementById('running-detail');
 const runningPct = document.getElementById('running-pct');
 const runningTarget = document.getElementById('running-target');
+const runningLogLink = document.getElementById('running-log-link');
+
+const resultTarget = document.getElementById('result-target');
+const resultMeta = document.getElementById('result-meta');
+const chartCard = document.getElementById('chart-card');
 
 let chartInstance = null;
+let pollTimer = null;
 
 // ---- basic url validation ----
 function normalizeUrl(raw) {
@@ -39,162 +55,233 @@ function normalizeUrl(raw) {
   }
 }
 
+function normalizeHostsInput(raw) {
+  // Dukung multi-host dipisah koma, masing-masing dinormalisasi.
+  const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+
+  const normalized = [];
+  for (const part of parts) {
+    const n = normalizeUrl(part);
+    if (!n) return null;
+    normalized.push(n);
+  }
+  return normalized;
+}
+
 // ---- form submit ----
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  const target = normalizeUrl(urlInput.value);
+  const hosts = normalizeHostsInput(urlInput.value);
 
-  if (!target) {
+  if (!hosts) {
     urlError.classList.remove('hidden');
-    urlInput.classList.add('border-clay-500');
+    urlInput.classList.add('focus:ring-signal-stop/30');
     urlInput.focus();
     return;
   }
   urlError.classList.add('hidden');
-  urlInput.classList.remove('border-clay-500');
+  triggerError.classList.add('hidden');
 
   const users = Math.max(1, parseInt(userCount.value, 10) || 20);
   const dur = Math.max(1, parseInt(duration.value, 10) || 3);
 
-  startRun(target, users, dur);
+  startRun(hosts, users, dur);
 });
 
 resetBtn.addEventListener('click', () => {
+  if (pollTimer) clearTimeout(pollTimer);
   resultsSection.classList.add('hidden');
   formCard.classList.remove('hidden');
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Mulai load test';
   urlInput.value = '';
   urlInput.focus();
 });
 
 // ---- run flow ----
-function startRun(target, users, dur) {
+async function startRun(hosts, users, dur) {
   formCard.classList.add('hidden');
   runningCard.classList.remove('hidden');
   resultsSection.classList.add('hidden');
+  runningLogLink.classList.add('hidden');
 
-  runningTarget.textContent = `${target} · ${users} user · ${dur} menit`;
+  const targetLabel = hosts.join(', ');
+  runningTarget.textContent = `${targetLabel} · ${users} user · ${dur} menit`;
+  setRunningStage('trigger');
 
-  const stages = [
-    { pct: 15, title: 'Meracik endpoint…', detail: 'Playwright sedang menjelajahi target untuk menemukan endpoint aktif.' },
-    { pct: 45, title: 'Memvalidasi method…', detail: 'Setiap endpoint di-dry-run dulu biar nggak ada false-positive 405.' },
-    { pct: 65, title: 'Menyeduh beban…', detail: `Locust menembak endpoint dengan ${users} simulasi user.` },
-    { pct: 90, title: 'Menyaring hasil…', detail: 'Mengelompokkan response ke kategori event masing-masing.' },
-    { pct: 100, title: 'Selesai diseduh.', detail: 'Hasil siap ditampilkan.' },
-  ];
+  try {
+    const res = await fetch(`${WORKER_URL}/trigger`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target_hosts: hosts.join(','),
+        users,
+        duration_minutes: dur,
+      }),
+    });
 
-  let i = 0;
-  runStage();
+    const data = await res.json();
 
-  function runStage() {
-    if (i >= stages.length) {
-      setTimeout(() => showResults(target, users, dur), 400);
-      return;
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Gagal trigger (status ${res.status})`);
     }
-    const s = stages[i];
-    progressBar.style.width = s.pct + '%';
-    bowlFill.style.setProperty('--fill', s.pct + '%');
-    bowlFill.style.height = s.pct + '%';
-    runningPct.textContent = s.pct + '%';
-    runningTitle.textContent = s.title;
-    runningDetail.textContent = s.detail;
-    i++;
-    const stepDelay = 900 + Math.random() * 700;
-    setTimeout(runStage, stepDelay);
+
+    setRunningStage('queued');
+    pollStatus(targetLabel, users, dur);
+  } catch (err) {
+    showTriggerError(err.message || 'Gagal menghubungi Worker.');
   }
 }
 
-// ---- mock result generator (replace with real fetch later) ----
-function generateMockResult(target, users, dur) {
-  const totalRequests = users * dur * (8 + Math.floor(Math.random() * 6));
-  const failRate = 0.04 + Math.random() * 0.1;
-  const failed = Math.floor(totalRequests * failRate);
-  const success = totalRequests - failed;
-
-  const eventPool = [
-    { type: 'SUCCESS', weight: success, endpoint: '/api/dashboard' },
-    { type: 'AUTH_EXPIRED', weight: Math.floor(failed * 0.25), endpoint: '/api/user/profile' },
-    { type: 'EDGE_LIMIT', weight: Math.floor(failed * 0.2), endpoint: '/api/transaksi' },
-    { type: 'SERVER_DOWN', weight: Math.floor(failed * 0.15), endpoint: '/api/report/export' },
-    { type: 'NOT_FOUND', weight: Math.floor(failed * 0.15), endpoint: '/api/legacy/status' },
-    { type: 'SOFT_BLOCKED', weight: Math.floor(failed * 0.1), endpoint: '/api/verify' },
-    { type: 'VALIDATION_ERROR', weight: Math.floor(failed * 0.15), endpoint: '/api/transaksi/create' },
-  ];
-
-  const breakdown = eventPool
-    .filter(e => e.weight > 0)
-    .map(e => ({
-      type: e.type,
-      endpoint: e.endpoint,
-      count: e.weight,
-      avgMs: Math.floor(80 + Math.random() * 900),
-    }));
-
-  const avgResponse = Math.floor(
-    breakdown.reduce((sum, b) => sum + b.avgMs * b.count, 0) / totalRequests
-  );
-
-  // time series buat chart
-  const points = 12;
-  const series = Array.from({ length: points }, (_, idx) => ({
-    t: idx,
-    responseTime: Math.max(50, avgResponse + (Math.random() - 0.5) * avgResponse * 0.6),
-    rps: Math.max(1, Math.floor((totalRequests / points) * (0.7 + Math.random() * 0.6))),
-  }));
-
-  return {
-    target, users, dur,
-    total: totalRequests,
-    success, failed,
-    avgResponse,
-    breakdown,
-    series,
-  };
+function showTriggerError(message) {
+  runningCard.classList.add('hidden');
+  formCard.classList.remove('hidden');
+  triggerError.textContent = `Gagal memulai test: ${message}`;
+  triggerError.classList.remove('hidden');
 }
 
-function showResults(target, users, dur) {
+function setRunningStage(stage) {
+  const stages = {
+    trigger: { pct: 4, title: 'Mengirim trigger…', detail: 'Mengirim permintaan ke GitHub Actions lewat Worker.' },
+    queued: { pct: 12, title: 'Menunggu antrean…', detail: 'Run sudah terdaftar, menunggu runner GitHub tersedia.' },
+    in_progress: { pct: 55, title: 'Test sedang berjalan…', detail: 'Crawling endpoint dan menembak beban di GitHub Actions runner.' },
+    completed: { pct: 100, title: 'Selesai.', detail: 'Mengambil hasil akhir…' },
+  };
+  const s = stages[stage] || stages.trigger;
+  progressBar.style.width = s.pct + '%';
+  runningPct.textContent = s.pct + '%';
+  runningTitle.textContent = s.title;
+  runningDetail.textContent = s.detail;
+}
+
+// ---- polling status ke Worker ----
+function pollStatus(targetLabel, users, dur) {
+  const startedAt = Date.now();
+
+  async function tick() {
+    if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+      showTriggerError('Timeout menunggu hasil. Cek langsung di GitHub Actions.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${WORKER_URL}/status`);
+      const data = await res.json();
+
+      if (data.state === 'found') {
+        if (data.html_url) {
+          runningLogLink.href = data.html_url;
+          runningLogLink.classList.remove('hidden');
+        }
+
+        if (data.status === 'completed') {
+          setRunningStage('completed');
+          if (data.conclusion === 'success') {
+            await fetchAndShowResults(targetLabel, users, dur);
+          } else {
+            showTriggerError(`Run selesai dengan status "${data.conclusion}". Cek log run untuk detail.`);
+          }
+          return; // stop polling
+        }
+
+        setRunningStage(data.status === 'queued' ? 'queued' : 'in_progress');
+      }
+    } catch (err) {
+      // Kegagalan jaringan sesaat: jangan hentikan polling, coba lagi.
+    }
+
+    pollTimer = setTimeout(tick, POLL_INTERVAL_MS);
+  }
+
+  tick();
+}
+
+// ---- fetch hasil asli dari GitHub ----
+async function fetchAndShowResults(targetLabel, users, dur) {
+  try {
+    const res = await fetch(`${RESULTS_RAW_URL}?t=${Date.now()}`);
+    if (!res.ok) throw new Error(`Gagal fetch hasil (status ${res.status})`);
+    const data = await res.json();
+
+    if (!data.generated_at) {
+      throw new Error('results/latest.json belum berisi hasil test.');
+    }
+
+    showResults(data, targetLabel);
+  } catch (err) {
+    showTriggerError(err.message || 'Gagal mengambil hasil test.');
+  }
+}
+
+function showResults(data, targetLabel) {
   runningCard.classList.add('hidden');
   resultsSection.classList.remove('hidden');
 
-  const data = generateMockResult(target, users, dur);
+  resultTarget.textContent = data.target_hosts || targetLabel;
+  const durText = data.duration_seconds ? `${Math.round(data.duration_seconds)}s` : '—';
+  resultMeta.textContent =
+    `${durText} · ${data.endpoints_tested ?? 0} endpoint diuji` +
+    (data.endpoints_skipped ? ` · ${data.endpoints_skipped} di-skip` : '');
+
   renderStats(data);
-  renderChart(data);
   renderBreakdown(data);
+  renderTimelineChart(data);
 }
 
 function renderStats(data) {
-  document.getElementById('stat-total').textContent = data.total.toLocaleString('id-ID');
-  document.getElementById('stat-success').textContent = data.success.toLocaleString('id-ID');
-  document.getElementById('stat-failed').textContent = data.failed.toLocaleString('id-ID');
-  document.getElementById('stat-avg').textContent = data.avgResponse + 'ms';
+  document.getElementById('stat-total').textContent =
+    (data.total_requests ?? 0).toLocaleString('id-ID');
+  document.getElementById('stat-success').textContent =
+    (data.total_success ?? 0).toLocaleString('id-ID');
+  document.getElementById('stat-failed').textContent =
+    (data.total_failures ?? 0).toLocaleString('id-ID');
+  document.getElementById('stat-avg').textContent =
+    (data.avg_response_ms ?? 0) + 'ms';
 }
 
-function renderChart(data) {
+// ---- chart: animasikan timeline snapshot dari locustfile.py ----
+function renderTimelineChart(data) {
+  const timeline = Array.isArray(data.timeline) ? data.timeline : [];
   const ctx = document.getElementById('response-chart');
-  if (chartInstance) chartInstance.destroy();
+
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+  }
+
+  if (timeline.length < 2) {
+    // Test terlalu singkat untuk punya snapshot berarti — sembunyikan chart
+    // daripada menampilkan grafik kosong/menyesatkan.
+    chartCard.classList.add('hidden');
+    return;
+  }
+
+  chartCard.classList.remove('hidden');
 
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: data.series.map(p => `${p.t}s`),
+      labels: timeline.map(p => `${Math.round(p.t)}s`),
       datasets: [
         {
           label: 'Response time (ms)',
-          data: data.series.map(p => Math.round(p.responseTime)),
-          borderColor: '#5F6E47',
-          backgroundColor: 'rgba(122,139,92,0.1)',
+          data: [],
+          borderColor: '#0D9488',
+          backgroundColor: 'rgba(13,148,136,0.08)',
           borderWidth: 2,
-          tension: 0.35,
+          tension: 0.3,
           fill: true,
           yAxisID: 'y',
           pointRadius: 0,
         },
         {
           label: 'RPS',
-          data: data.series.map(p => p.rps),
-          borderColor: '#B5533C',
+          data: [],
+          borderColor: '#D97706',
           borderWidth: 2,
           borderDash: [4, 3],
-          tension: 0.35,
+          tension: 0.3,
           fill: false,
           yAxisID: 'y1',
           pointRadius: 0,
@@ -203,64 +290,83 @@ function renderChart(data) {
     },
     options: {
       responsive: true,
+      animation: false, // animasi dikendalikan manual lewat progressive reveal di bawah
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { font: { family: 'Space Mono', size: 11 }, color: '#5F6E47', usePointStyle: true, boxWidth: 6 },
+          labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#6B7280', usePointStyle: true, boxWidth: 6 },
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'Space Mono', size: 10 }, color: '#96A66E' } },
+        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' } },
         y: {
           position: 'left',
-          grid: { color: '#EFF2E6' },
-          ticks: { font: { family: 'Space Mono', size: 10 }, color: '#96A66E' },
-          title: { display: true, text: 'ms', font: { family: 'Space Mono', size: 10 }, color: '#96A66E' },
+          grid: { color: '#F3F4F6' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
+          title: { display: true, text: 'ms', font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
         },
         y1: {
           position: 'right',
           grid: { display: false },
-          ticks: { font: { family: 'Space Mono', size: 10 }, color: '#96A66E' },
-          title: { display: true, text: 'req/s', font: { family: 'Space Mono', size: 10 }, color: '#96A66E' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
+          title: { display: true, text: 'req/s', font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
         },
       },
     },
   });
+
+  // Progressive reveal: data asli (bukan animasi palsu), cuma ditampilkan
+  // bertahap titik demi titik biar chart terasa "membangun diri" saat
+  // hasil pertama kali muncul di layar.
+  let i = 0;
+  const revealStep = () => {
+    if (i >= timeline.length) return;
+    chartInstance.data.datasets[0].data.push(Math.round(timeline[i].avg_response_ms));
+    chartInstance.data.datasets[1].data.push(timeline[i].rps);
+    chartInstance.update('none');
+    i++;
+    setTimeout(revealStep, 90);
+  };
+  revealStep();
 }
 
 const EVENT_STYLES = {
-  SUCCESS: 'bg-matcha-100 text-matcha-700',
-  AUTH_EXPIRED: 'bg-amber-100 text-amber-700',
-  EDGE_LIMIT: 'bg-amber-100 text-amber-700',
-  APP_LIMIT: 'bg-amber-100 text-amber-700',
-  SERVER_DOWN: 'bg-clay-500/10 text-clay-600',
-  EDGE_DOWN: 'bg-clay-500/10 text-clay-600',
-  NOT_FOUND: 'bg-matcha-200 text-matcha-700',
-  SOFT_BLOCKED: 'bg-clay-500/10 text-clay-600',
-  VALIDATION_ERROR: 'bg-amber-100 text-amber-700',
-  METHOD_ERROR: 'bg-amber-100 text-amber-700',
-  DEFAULT: 'bg-matcha-100 text-matcha-700',
+  SUCCESS: 'bg-signal-goBg text-signal-go',
+  AUTH_EXPIRED: 'bg-signal-warnBg text-signal-warn',
+  EDGE_LIMIT: 'bg-signal-warnBg text-signal-warn',
+  APP_LIMIT: 'bg-signal-warnBg text-signal-warn',
+  SERVER_DOWN: 'bg-signal-stopBg text-signal-stop',
+  EDGE_DOWN: 'bg-signal-stopBg text-signal-stop',
+  SERVER_ERROR: 'bg-signal-stopBg text-signal-stop',
+  EDGE_ERROR: 'bg-signal-stopBg text-signal-stop',
+  NOT_FOUND: 'bg-ink-100 text-ink-700',
+  SOFT_BLOCKED: 'bg-signal-stopBg text-signal-stop',
+  VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn',
+  METHOD_ERROR: 'bg-signal-warnBg text-signal-warn',
+  CONN_ERROR: 'bg-signal-stopBg text-signal-stop',
+  DEFAULT: 'bg-ink-100 text-ink-700',
 };
 
 function renderBreakdown(data) {
   const tbody = document.getElementById('breakdown-body');
   tbody.innerHTML = '';
 
-  const sorted = [...data.breakdown].sort((a, b) => b.count - a.count);
+  const breakdown = Array.isArray(data.breakdown) ? data.breakdown : [];
+  const sorted = [...breakdown].sort((a, b) => b.count - a.count);
 
   for (const row of sorted) {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-matcha-50/60 transition-colors';
-    const badgeClass = EVENT_STYLES[row.type] || EVENT_STYLES.DEFAULT;
+    tr.className = 'hover:bg-ink-100/40 transition-colors';
+    const badgeClass = EVENT_STYLES[row.event_type] || EVENT_STYLES.DEFAULT;
 
     tr.innerHTML = `
       <td class="px-6 py-3">
-        <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold ${badgeClass}">${row.type}</span>
+        <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold font-mono ${badgeClass}">${row.event_type}</span>
       </td>
-      <td class="px-6 py-3 text-matcha-600">${row.endpoint}</td>
-      <td class="px-6 py-3 text-right text-matcha-800">${row.count.toLocaleString('id-ID')}</td>
-      <td class="px-6 py-3 text-right text-matcha-500">${row.avgMs}</td>
+      <td class="px-6 py-3 text-ink-500 font-mono text-xs truncate max-w-[220px]">${row.endpoint}</td>
+      <td class="px-6 py-3 text-right font-mono">${row.count.toLocaleString('id-ID')}</td>
+      <td class="px-6 py-3 text-right font-mono text-ink-500">${row.avg_ms}</td>
     `;
     tbody.appendChild(tr);
   }

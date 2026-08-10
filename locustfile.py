@@ -1,7 +1,29 @@
 """
-LOCUST + PLAYWRIGHT - Auto-crawl & capture API endpoints (FIXED v4)
+LOCUST + PLAYWRIGHT - Auto-crawl & capture API endpoints (FIXED v5)
 
-Perubahan dari v3:
+Perubahan dari v4:
+16. NEW: TIMELINE SNAPSHOT UNTUK CHART REALTIME-LOOKING
+    Ditambahkan greenlet background (mirip pola crawl_background) yang
+    mengambil snapshot ringan dari environment.stats.total tiap
+    SNAPSHOT_INTERVAL_S detik SELAMA test berjalan, dan menyimpannya
+    di memory (list TIMELINE_SNAPSHOTS) - bukan ditulis ke file
+    berkali-kali. Snapshot ini baru ditulis ke JSON SEKALI, bareng
+    hasil akhir lainnya, di listener test_stop yang sudah ada (v4).
+
+    Kenapa begini (bukan commit ke git tiap interval): commit/push
+    berkala dari GitHub Actions runner rawan race condition & rate
+    limit kalau dilakukan terlalu sering. Snapshot disimpan di memory
+    proses Locust dulu (murah, tidak ada I/O network), baru di-flush
+    ke results/latest.json satu kali di akhir sebagai array
+    "timeline". Frontend yang tanggung jawab menganimasikan array ini
+    supaya chart terasa "hidup" saat ditampilkan.
+
+    Tidak ada logic crawl/validasi/load test yang diubah - snapshot
+    murni membaca environment.stats.total (agregat real-time yang
+    memang sudah disediakan Locust secara internal), sama seperti
+    listener test_stop v4 membaca stats.entries di akhir.
+
+--- (komentar v1-v4 sebelumnya tetap berlaku di bawah) ---
 15. NEW: JSON RESULT EXPORT
     Ditambahkan listener test_stop yang mengumpulkan semua statistik
     per event_type dari environment.stats (termasuk request_type custom
@@ -13,7 +35,6 @@ Perubahan dari v3:
     setelah test selesai, tanpa perlu parsing HTML report Locust atau
     akses ke proses Locust yang sudah mati.
 
---- (komentar v1-v3 sebelumnya tetap berlaku di bawah) ---
 12. FIX METHOD_ERROR (405) FALSE POSITIVE:
     Root cause: Playwright kadang nangkep method request yang TIDAK
     mencerminkan method resmi endpoint tersebut. Contoh nyata:
@@ -132,6 +153,11 @@ SOFT_BLOCK_CHECK_MAX_BYTES = 20_000
 # Bisa dioverride lewat env var RESULTS_PATH (dipakai di workflow Actions).
 RESULTS_PATH = os.environ.get("RESULTS_PATH", "results/latest.json")
 
+# Interval snapshot timeline (detik). Dipakai buat chart di frontend -
+# semakin kecil semakin "halus" grafiknya, tapi jangan terlalu kecil
+# karena tetap jalan di greenlet yang sama dengan load test.
+SNAPSHOT_INTERVAL_S = float(os.environ.get("SNAPSHOT_INTERVAL_S", "10"))
+
 
 def detect_soft_block(resp) -> str | None:
     """
@@ -170,6 +196,11 @@ ALL_ENDPOINTS: list[dict] = []
 SKIPPED_ENDPOINTS: list[dict] = []
 CRAWL_FINISHED = False
 TEST_START_TIME: float | None = None
+
+# v5: snapshot timeline untuk chart. Diisi oleh greenlet snapshot_background,
+# dibaca sekali oleh on_test_stop untuk ditulis ke JSON.
+TIMELINE_SNAPSHOTS: list[dict] = []
+SNAPSHOT_RUNNING = False
 
 
 # ================== FILTER URL ==================
@@ -463,11 +494,53 @@ def add_custom_args(parser):
     )
 
 
+def snapshot_background(environment):
+    """
+    v5: Ambil snapshot ringan dari statistik agregat tiap SNAPSHOT_INTERVAL_S
+    detik, SELAMA load test berjalan (bukan saat crawling). Disimpan di
+    memory saja (TIMELINE_SNAPSHOTS) - tidak ada I/O file/network di sini,
+    supaya tidak mengganggu statistik Locust yang sedang berjalan.
+
+    Snapshot berhenti otomatis begitu SNAPSHOT_RUNNING di-set False oleh
+    on_test_stop, atau kalau runner sudah tidak lagi "running"/"spawning".
+    """
+    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING
+
+    # Tunggu crawling selesai dulu supaya snapshot pertama sudah
+    # mencerminkan fase load test yang sebenarnya, bukan fase crawl.
+    waited = 0
+    while not CRAWL_FINISHED and waited < 90:
+        gevent.sleep(0.5)
+        waited += 0.5
+
+    start = time.time()
+    while SNAPSHOT_RUNNING:
+        try:
+            state = environment.runner.state if environment.runner else "unknown"
+            if state not in ("running", "spawning"):
+                break
+
+            total = environment.stats.total
+            TIMELINE_SNAPSHOTS.append({
+                "t": round(time.time() - start, 1),
+                "total_requests": total.num_requests + total.num_failures,
+                "avg_response_ms": round(total.avg_response_time, 1) if total.num_requests > 0 else 0,
+                "rps": round(total.current_rps, 2) if hasattr(total, "current_rps") else 0,
+            })
+        except Exception as e:
+            print(f"[snapshot] gagal ambil snapshot: {e}")
+
+        gevent.sleep(SNAPSHOT_INTERVAL_S)
+
+
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     global ALL_ENDPOINTS, SKIPPED_ENDPOINTS, CRAWL_FINISHED, TEST_START_TIME
+    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING
 
     TEST_START_TIME = time.time()
+    TIMELINE_SNAPSHOTS = []
+    SNAPSHOT_RUNNING = True
 
     raw = environment.parsed_options.target_hosts.strip()
     if not raw:
@@ -489,19 +562,27 @@ def on_test_start(environment, **kwargs):
               f"{len(SKIPPED_ENDPOINTS)} endpoint di-skip total.")
 
     gevent.spawn(crawl_background)
+    gevent.spawn(snapshot_background, environment)
 
 
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
     """
-    Ditambahkan di v4. Mengumpulkan statistik akhir dari environment.stats
+    v4: Mengumpulkan statistik akhir dari environment.stats
     (termasuk semua request_type custom seperti SOFT_BLOCKED, EDGE_DOWN,
     AUTH_EXPIRED, dst) dan menulisnya ke file JSON supaya bisa dibaca
     frontend setelah proses Locust ini selesai/mati.
 
+    v5: Juga menyertakan TIMELINE_SNAPSHOTS (diisi snapshot_background
+    selama test berjalan) sebagai field "timeline", supaya frontend bisa
+    menganimasikan chart response time/RPS dari waktu ke waktu.
+
     Tidak menyentuh logic test sama sekali - murni membaca statistik
     yang sudah dikumpulkan Locust secara internal lewat events.request.fire().
     """
+    global SNAPSHOT_RUNNING
+    SNAPSHOT_RUNNING = False
+
     try:
         stats = environment.stats
         duration_s = round(time.time() - TEST_START_TIME, 2) if TEST_START_TIME else None
@@ -547,6 +628,10 @@ def on_test_stop(environment, **kwargs):
             "total_failures": total_failures,
             "avg_response_ms": avg_response_overall,
             "breakdown": sorted(breakdown, key=lambda x: x["count"], reverse=True),
+            # v5: history ringan buat chart di frontend. Kalau kosong
+            # (test terlalu singkat / gagal sebelum sempat snapshot),
+            # frontend cukup fallback ke tampilan tanpa animasi timeline.
+            "timeline": TIMELINE_SNAPSHOTS,
         }
 
         os.makedirs(os.path.dirname(RESULTS_PATH), exist_ok=True)
@@ -555,6 +640,7 @@ def on_test_stop(environment, **kwargs):
 
         print(f"[export] Hasil test ditulis ke {RESULTS_PATH}")
         print(f"[export] Total: {total_requests}, Sukses: {total_success}, Gagal: {total_failures}")
+        print(f"[export] Timeline snapshots: {len(TIMELINE_SNAPSHOTS)}")
 
     except Exception as e:
         print(f"[export] ERROR gagal menulis hasil JSON: {e}")

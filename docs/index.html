@@ -1,209 +1,210 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matchastress — Load Test Runner</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K1NZETTT · Load Test</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: {
+              900: '#111827',
+              700: '#374151',
+              500: '#6B7280',
+              300: '#D1D5DB',
+              100: '#F3F4F6',
+            },
+            signal: {
+              go: '#0D9488',
+              goBg: '#F0FDFA',
+              warn: '#D97706',
+              warnBg: '#FFFBEB',
+              stop: '#DC2626',
+              stopBg: '#FEF2F2',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
 </head>
-<body class="text-matcha-800 font-sans antialiased min-h-screen">
+<body class="bg-white text-ink-900 font-sans antialiased">
 
-  <!-- ============ HEADER ============ -->
-  <header class="border-b border-matcha-200 texture-noise">
-    <div class="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M9 13 Q9 9 17 9 Q25 9 25 13 L23 26 Q22.5 29 17 29 Q11.5 29 11 26 Z" fill="#5F6E47"/>
-          <ellipse cx="17" cy="13" rx="8" ry="2.4" fill="#96A66E"/>
-          <ellipse cx="17" cy="13" rx="8" ry="2.4" fill="none" stroke="#3D4A2E" stroke-width="0.6"/>
-        </svg>
-        <div>
-          <h1 class="font-mono font-bold text-lg tracking-tight text-matcha-800">matchastress</h1>
-          <p class="text-xs text-matcha-500 -mt-0.5">load test runner</p>
+  <div class="max-w-3xl mx-auto px-6 py-12 md:py-20">
+
+    <!-- ===== Header ===== -->
+    <header class="mb-12 flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-signal-go"></span>
+          <span class="text-xs font-mono text-ink-500 tracking-wide">K1NZETTT</span>
         </div>
+        <h1 class="text-2xl font-semibold tracking-tight">Load Test</h1>
       </div>
-      <div class="hidden sm:flex items-center gap-2 text-xs font-mono text-matcha-500">
-        <span class="w-1.5 h-1.5 rounded-full bg-matcha-400"></span>
-        siap diseduh
-      </div>
-    </div>
-  </header>
+      <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
+         class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
+        actions log ↗
+      </a>
+    </header>
 
-  <main class="max-w-5xl mx-auto px-6 py-12">
-
-    <!-- ============ INTRO ============ -->
-    <section class="mb-12 max-w-2xl">
-      <h2 class="text-3xl sm:text-4xl font-bold text-matcha-800 leading-tight mb-3">
-        Masukkan target, seduh testnya.
-      </h2>
-      <p class="text-matcha-600 leading-relaxed">
-        Crawler otomatis nemuin endpoint, lalu Locust nembak dengan beban yang kamu atur.
-        Hasilnya dipilah per jenis kegagalan — bukan cuma pass/fail.
-      </p>
-    </section>
-
-    <!-- ============ FORM CARD ============ -->
-    <section id="form-card" class="bg-white rounded-2xl border border-matcha-200 shadow-sm shadow-matcha-900/5 p-6 sm:p-8 mb-10">
-      <form id="test-form" class="space-y-7">
+    <!-- ===== Form Card ===== -->
+    <section id="form-card" class="border border-ink-100 rounded-2xl p-6 md:p-8">
+      <form id="test-form" class="space-y-6">
 
         <div>
-          <label for="target-url" class="block text-sm font-semibold text-matcha-800 mb-2">
+          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2">
             Target URL
           </label>
-          <div class="relative">
-            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-matcha-400 font-mono text-sm">→</span>
+          <input
+            id="target-url"
+            type="text"
+            placeholder="example.com"
+            autocomplete="off"
+            class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
+                   placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go
+                   transition-colors"
+          />
+          <p id="url-error" class="hidden mt-2 text-xs font-mono text-signal-stop">
+            URL tidak valid — coba format seperti example.com
+          </p>
+          <p class="mt-2 text-xs text-ink-500">
+            Bisa lebih dari satu host, pisahkan dengan koma.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2">
+              Simulasi user
+            </label>
             <input
-              type="text"
-              id="target-url"
-              placeholder="kawaltransaksi.com atau https://app.kawaltransaksi.com"
-              class="focus-ring w-full pl-9 pr-4 py-3.5 rounded-xl border border-matcha-200 bg-matcha-50/50 font-mono text-sm text-matcha-800 placeholder:text-matcha-400 focus:border-matcha-400 focus:bg-white transition-colors"
-              autocomplete="off"
-            >
+              id="user-count" type="number" min="1" value="20"
+              class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
+                     focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go transition-colors"
+            />
           </div>
-          <p id="url-error" class="hidden text-xs text-clay-500 mt-2 font-medium">Masukkan URL yang valid dulu, ya.</p>
-        </div>
-
-        <div class="grid sm:grid-cols-2 gap-7">
           <div>
-            <label for="user-count" class="block text-sm font-semibold text-matcha-800 mb-2">Jumlah user</label>
-            <div class="relative">
-              <input
-                type="number"
-                id="user-count"
-                min="1"
-                value="20"
-                placeholder="20"
-                class="focus-ring w-full pl-4 pr-16 py-3 rounded-xl border border-matcha-200 bg-matcha-50/50 font-mono text-sm text-matcha-800 focus:border-matcha-400 focus:bg-white transition-colors"
-              >
-              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-matcha-400 font-mono pointer-events-none">user</span>
-            </div>
-          </div>
-
-          <div>
-            <label for="duration" class="block text-sm font-semibold text-matcha-800 mb-2">Durasi</label>
-            <div class="relative">
-              <input
-                type="number"
-                id="duration"
-                min="1"
-                value="3"
-                placeholder="3"
-                class="focus-ring w-full pl-4 pr-16 py-3 rounded-xl border border-matcha-200 bg-matcha-50/50 font-mono text-sm text-matcha-800 focus:border-matcha-400 focus:bg-white transition-colors"
-              >
-              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-matcha-400 font-mono pointer-events-none">menit</span>
-            </div>
+            <label for="duration" class="block text-sm font-medium text-ink-700 mb-2">
+              Durasi (menit)
+            </label>
+            <input
+              id="duration" type="number" min="1" value="3"
+              class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
+                     focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go transition-colors"
+            />
           </div>
         </div>
-        <p id="limit-note" class="text-xs text-matcha-400 -mt-4">Nggak ada batas atas dari sisi form — batas nyata cuma dari kapasitas runner yang menjalankan test.</p>
 
         <button
-          type="submit"
-          id="submit-btn"
-          class="focus-ring w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-matcha-700 hover:bg-matcha-800 text-white font-semibold text-sm px-8 py-3.5 rounded-xl transition-colors"
+          id="submit-btn" type="submit"
+          class="w-full py-3.5 rounded-lg bg-ink-900 text-white text-sm font-medium
+                 hover:bg-ink-700 active:scale-[0.99] transition-all"
         >
-          Mulai Test
+          Mulai load test
         </button>
+
+        <p id="trigger-error" class="hidden text-xs font-mono text-signal-stop text-center"></p>
       </form>
     </section>
 
-    <!-- ============ RUNNING STATE ============ -->
-    <section id="running-card" class="hidden bg-white rounded-2xl border border-matcha-200 shadow-sm shadow-matcha-900/5 p-6 sm:p-8 mb-10 rise-in">
-      <div class="flex items-start gap-5">
-        <!-- matcha bowl progress visual -->
-        <div class="shrink-0 relative w-16 h-16">
-          <div class="bowl-shape absolute inset-0 bg-matcha-100 border-2 border-matcha-300 overflow-hidden flex items-end">
-            <div id="bowl-fill" class="steep-fill w-full bg-matcha-500" style="--fill: 0%; height: 0%;"></div>
-          </div>
-          <div id="whisk-icon" class="whisking absolute -top-1 -right-1 w-6 h-6 text-matcha-700">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 L12 14 M8 14 Q12 18 16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
-        </div>
-
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center justify-between mb-1">
-            <h3 id="running-title" class="font-semibold text-matcha-800">Meracik endpoint…</h3>
-            <span id="running-pct" class="font-mono text-sm text-matcha-500">0%</span>
-          </div>
-          <p id="running-detail" class="text-sm text-matcha-500 mb-4">Playwright sedang menjelajahi target untuk menemukan endpoint aktif.</p>
-
-          <div class="w-full h-2 bg-matcha-100 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-matcha-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
-          </div>
-
-          <p class="text-xs text-matcha-400 font-mono mt-3" id="running-target"></p>
-        </div>
+    <!-- ===== Running Card ===== -->
+    <section id="running-card" class="hidden border border-ink-100 rounded-2xl p-6 md:p-8">
+      <div class="flex items-center justify-between mb-1">
+        <span id="running-title" class="text-sm font-medium text-ink-900">Menunggu runner…</span>
+        <span id="running-pct" class="text-xs font-mono text-ink-500">0%</span>
       </div>
+      <p id="running-target" class="text-xs font-mono text-ink-500 mb-5 truncate"></p>
+
+      <div class="h-1.5 w-full bg-ink-100 rounded-full overflow-hidden mb-5">
+        <div id="progress-bar" class="h-full bg-signal-go rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
+      </div>
+
+      <p id="running-detail" class="text-xs text-ink-500 leading-relaxed">
+        Trigger terkirim ke GitHub Actions, menunggu status run…
+      </p>
+
+      <a id="running-log-link" href="#" target="_blank" rel="noopener"
+         class="hidden mt-4 inline-block text-xs font-mono text-ink-500 hover:text-ink-900 underline decoration-ink-300 underline-offset-4">
+        lihat log run ↗
+      </a>
     </section>
 
-    <!-- ============ RESULTS ============ -->
-    <section id="results" class="hidden rise-in">
+    <!-- ===== Results ===== -->
+    <section id="results" class="hidden space-y-6">
 
-      <div class="flex items-center justify-between mb-5">
-        <h3 class="text-lg font-bold text-matcha-800">Hasil Seduhan</h3>
-        <button id="reset-btn" class="focus-ring text-sm font-medium text-matcha-600 hover:text-matcha-800 transition-colors">
-          Test baru →
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="result-target" class="text-sm font-mono text-ink-500 truncate max-w-md"></p>
+          <p id="result-meta" class="text-xs text-ink-500 mt-1"></p>
+        </div>
+        <button id="reset-btn" class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
+          test baru
         </button>
       </div>
 
-      <!-- summary cards -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div class="bg-white rounded-xl border border-matcha-200 p-4">
-          <p class="text-xs text-matcha-500 font-medium mb-1">Total Request</p>
-          <p id="stat-total" class="font-mono text-2xl font-bold text-matcha-800">—</p>
+      <!-- Stats grid -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="border border-ink-100 rounded-xl p-4">
+          <p class="text-xs text-ink-500 mb-1">Total request</p>
+          <p id="stat-total" class="text-xl font-mono font-semibold">—</p>
         </div>
-        <div class="bg-white rounded-xl border border-matcha-200 p-4">
-          <p class="text-xs text-matcha-500 font-medium mb-1">Berhasil</p>
-          <p id="stat-success" class="font-mono text-2xl font-bold text-matcha-600">—</p>
+        <div class="border border-ink-100 rounded-xl p-4">
+          <p class="text-xs text-ink-500 mb-1">Sukses</p>
+          <p id="stat-success" class="text-xl font-mono font-semibold text-signal-go">—</p>
         </div>
-        <div class="bg-white rounded-xl border border-matcha-200 p-4">
-          <p class="text-xs text-matcha-500 font-medium mb-1">Gagal</p>
-          <p id="stat-failed" class="font-mono text-2xl font-bold text-clay-500">—</p>
+        <div class="border border-ink-100 rounded-xl p-4">
+          <p class="text-xs text-ink-500 mb-1">Gagal</p>
+          <p id="stat-failed" class="text-xl font-mono font-semibold text-signal-stop">—</p>
         </div>
-        <div class="bg-white rounded-xl border border-matcha-200 p-4">
-          <p class="text-xs text-matcha-500 font-medium mb-1">Avg Response</p>
-          <p id="stat-avg" class="font-mono text-2xl font-bold text-matcha-800">—</p>
+        <div class="border border-ink-100 rounded-xl p-4">
+          <p class="text-xs text-ink-500 mb-1">Avg response</p>
+          <p id="stat-avg" class="text-xl font-mono font-semibold">—</p>
         </div>
       </div>
 
-      <!-- chart -->
-      <div class="bg-white rounded-2xl border border-matcha-200 p-6 mb-6">
-        <p class="text-sm font-semibold text-matcha-800 mb-4">Response Time & RPS</p>
-        <canvas id="response-chart" height="80"></canvas>
+      <!-- Timeline chart -->
+      <div id="chart-card" class="hidden border border-ink-100 rounded-2xl p-6">
+        <p class="text-sm font-medium text-ink-900 mb-4">Response time & RPS selama test</p>
+        <canvas id="response-chart" height="90"></canvas>
       </div>
 
-      <!-- breakdown table -->
-      <div class="bg-white rounded-2xl border border-matcha-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-matcha-100">
-          <p class="text-sm font-semibold text-matcha-800">Rincian per Jenis Event</p>
-          <p class="text-xs text-matcha-500 mt-0.5">Dipilah dari kategori asli script — bukan sekadar pass/fail.</p>
+      <!-- Breakdown table -->
+      <div class="border border-ink-100 rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-ink-100">
+          <p class="text-sm font-medium text-ink-900">Breakdown per event</p>
         </div>
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-xs text-matcha-500 border-b border-matcha-100">
-              <th class="px-6 py-3 font-medium">Event Type</th>
-              <th class="px-6 py-3 font-medium">Endpoint</th>
-              <th class="px-6 py-3 font-medium text-right">Jumlah</th>
-              <th class="px-6 py-3 font-medium text-right">Avg (ms)</th>
-            </tr>
-          </thead>
-          <tbody id="breakdown-body" class="divide-y divide-matcha-100 font-mono text-[13px]">
-          </tbody>
-        </table>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-ink-500 border-b border-ink-100">
+                <th class="px-6 py-3 font-medium">Event</th>
+                <th class="px-6 py-3 font-medium">Endpoint</th>
+                <th class="px-6 py-3 font-medium text-right">Count</th>
+                <th class="px-6 py-3 font-medium text-right">Avg ms</th>
+              </tr>
+            </thead>
+            <tbody id="breakdown-body" class="divide-y divide-ink-100"></tbody>
+          </table>
+        </div>
       </div>
 
     </section>
 
-  </main>
+  </div>
 
-  <footer class="border-t border-matcha-200 mt-16">
-    <div class="max-w-5xl mx-auto px-6 py-6 text-xs text-matcha-400 font-mono">
-      matchastress — internal tool
-    </div>
-  </footer>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
