@@ -1,7 +1,5 @@
 name: Load Test
 
-# Bisa di-trigger manual dari tab Actions di GitHub (web/app, termasuk dari HP),
-# atau lewat GitHub API (nanti dipanggil dari Cloudflare Worker).
 on:
   workflow_dispatch:
     inputs:
@@ -25,8 +23,9 @@ on:
         default: "5"
         type: string
 
-# Cegah dua load test jalan bersamaan (biar nggak rebutan resource runner
-# dan biar results/latest.json nggak ketimpa race condition)
+permissions:
+  contents: write
+
 concurrency:
   group: loadtest
   cancel-in-progress: false
@@ -73,8 +72,6 @@ jobs:
             echo "results/latest.json tidak ditemukan - test kemungkinan gagal sebelum selesai."
           fi
 
-      # Commit hasil JSON ke repo supaya frontend (GitHub Pages) bisa fetch
-      # langsung dari raw file tanpa perlu backend tambahan.
       - name: Commit result to repo
         if: always()
         run: |
@@ -88,8 +85,6 @@ jobs:
           git diff --staged --quiet && echo "Tidak ada perubahan." || git commit -m "chore: update hasil load test [skip ci]"
           git push
 
-      # Simpan juga sebagai artifact - berguna kalau push ke repo gagal
-      # (misal karena race condition) atau kamu mau download hasil mentahnya.
       - name: Upload result as artifact
         if: always()
         uses: actions/upload-artifact@v4
