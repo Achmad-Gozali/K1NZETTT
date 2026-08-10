@@ -2,13 +2,12 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>K1NZETTT · Load Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>K1NZETTT · Uji Beban</title>
+  <meta name="theme-color" content="#000000" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 
   <script>
@@ -16,155 +15,175 @@
       theme: {
         extend: {
           colors: {
+            canvas: '#000000',
             surface: {
-              900: '#0B0F0E',
-              800: '#121715',
-              700: '#1A211E',
-              600: '#1F2622',
-              border: '#232B27',
+              DEFAULT: '#0A0A0A',
+              raised: '#111111',
+              border: '#1F1F1F',
+              borderHover: '#333333',
             },
             ink: {
-              900: '#E8ECEA',
-              700: '#B7C0BC',
-              500: '#8A9591',
-              300: '#5C6763',
-              100: '#2A302D',
+              900: '#FAFAFA',
+              700: '#B0B0B0',
+              500: '#888888',
+              300: '#555555',
+              100: '#1A1A1A',
             },
             signal: {
-              go: '#14B8A6',
-              goBg: 'rgba(20,184,166,0.10)',
-              warn: '#F59E0B',
-              warnBg: 'rgba(245,158,11,0.10)',
-              stop: '#EF4444',
-              stopBg: 'rgba(239,68,68,0.10)',
+              go: '#50E3A4',
+              goBg: 'rgba(80,227,164,0.08)',
+              goBorder: 'rgba(80,227,164,0.25)',
+              warn: '#F5A623',
+              warnBg: 'rgba(245,166,35,0.08)',
+              warnBorder: 'rgba(245,166,35,0.25)',
+              stop: '#F5455C',
+              stopBg: 'rgba(245,69,92,0.08)',
+              stopBorder: 'rgba(245,69,92,0.25)',
             },
           },
-          boxShadow: {
-            card: '0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -12px rgba(0,0,0,0.5)',
-            cardHover: '0 1px 2px rgba(0,0,0,0.2), 0 16px 32px -12px rgba(0,0,0,0.6)',
-          },
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', '"SF Mono"', '"Cascadia Code"', 'Menlo', 'Consolas', 'monospace'],
+          },
+          borderRadius: {
+            card: '10px',
+            control: '6px',
+          },
+          keyframes: {
+            fadeSlideUp: {
+              '0%': { opacity: '0', transform: 'translateY(6px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            pulseDot: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.35' },
+            },
+          },
+          animation: {
+            'fade-slide-up': 'fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            'pulse-dot': 'pulseDot 1.8s ease-in-out infinite',
           },
         },
       },
     };
   </script>
 </head>
-<body class="bg-surface-900 text-ink-900 font-sans antialiased">
+<body class="bg-canvas text-ink-900 font-sans antialiased">
 
-  <div class="max-w-3xl mx-auto px-6 py-14 md:py-24">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16 md:py-20">
 
     <!-- ===== Header + status bar ===== -->
-    <header class="mb-10 flex items-start justify-between gap-6 flex-wrap">
-      <div>
-        <div class="flex items-center gap-2 mb-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-signal-go"></span>
-          <span class="text-[11px] text-ink-500 tracking-[0.1em] uppercase">K1nzettt</span>
-        </div>
-        <h1 class="text-[28px] font-semibold tracking-tight text-ink-900">Load Test</h1>
+    <header class="mb-8 sm:mb-10">
+      <div class="flex items-center gap-2 mb-5">
+        <span id="header-dot" class="w-1.5 h-1.5 rounded-full bg-signal-go animate-pulse-dot"></span>
+        <span class="text-[11px] text-ink-500 tracking-[0.14em] uppercase font-medium">K1NZETTT</span>
       </div>
 
-      <!-- Status bar: Host / Status / RPS / Failures (ala Locust) -->
-      <div id="status-bar" class="flex items-stretch gap-0 bg-surface-800 border border-surface-border rounded-xl overflow-hidden">
-        <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Host</p>
-          <p id="status-host" class="text-xs font-mono text-ink-900 max-w-[140px] truncate">—</p>
-        </div>
-        <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Status</p>
-          <p id="status-state" class="text-xs font-mono font-semibold text-ink-500">IDLE</p>
-        </div>
-        <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">RPS</p>
-          <p id="status-rps" class="text-xs font-mono text-ink-500">—</p>
-        </div>
-        <div class="px-4 py-2.5">
-          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Failures</p>
-          <p id="status-failures" class="text-xs font-mono text-ink-500">—</p>
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+        <h1 class="text-2xl sm:text-[28px] font-semibold tracking-tight text-ink-900">
+          Uji Beban
+        </h1>
+
+        <!-- Status bar: Host / Status / RPS / Kegagalan -->
+        <div id="status-bar" class="grid grid-cols-4 sm:flex sm:items-stretch gap-0 bg-surface border border-surface-border rounded-card overflow-hidden shrink-0">
+          <div class="px-3 sm:px-4 py-2.5 border-r border-surface-border">
+            <p class="text-[9px] sm:text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Host</p>
+            <p id="status-host" class="text-xs font-mono text-ink-900 max-w-[70px] sm:max-w-[120px] truncate">—</p>
+          </div>
+          <div class="px-3 sm:px-4 py-2.5 border-r border-surface-border">
+            <p class="text-[9px] sm:text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Status</p>
+            <p id="status-state" class="text-xs font-mono font-semibold text-ink-500">IDLE</p>
+          </div>
+          <div class="px-3 sm:px-4 py-2.5 border-r border-surface-border">
+            <p class="text-[9px] sm:text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">RPS</p>
+            <p id="status-rps" class="text-xs font-mono text-ink-500">—</p>
+          </div>
+          <div class="px-3 sm:px-4 py-2.5">
+            <p class="text-[9px] sm:text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Gagal</p>
+            <p id="status-failures" class="text-xs font-mono text-ink-500">—</p>
+          </div>
         </div>
       </div>
     </header>
 
     <!-- ===== Form Card ===== -->
-    <section id="form-card" class="bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7 md:p-10">
-      <form id="test-form" class="space-y-7">
+    <section id="form-card" class="bg-surface border border-surface-border rounded-card p-5 sm:p-7 md:p-9">
+      <form id="test-form" class="space-y-6 sm:space-y-7">
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2.5">
-              Number of users
+            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2">
+              Jumlah pengguna
             </label>
             <input
               id="user-count" type="number" min="1" value="20"
-              class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
-                     placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
-                     transition-all"
+              class="w-full px-3.5 py-3 rounded-control border border-surface-border bg-black font-mono text-sm text-ink-900
+                     placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-ink-900/20 focus:border-ink-500
+                     transition-colors"
             />
-            <p class="mt-2 text-[11px] text-ink-500">Peak concurrency</p>
+            <p class="mt-1.5 text-[11px] text-ink-500">Puncak konkurensi</p>
           </div>
           <div>
-            <label for="spawn-rate" class="block text-sm font-medium text-ink-700 mb-2.5">
-              Ramp up
+            <label for="spawn-rate" class="block text-sm font-medium text-ink-700 mb-2">
+              Laju kenaikan
             </label>
             <input
               id="spawn-rate" type="number" min="1" value="5"
-              class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
-                     placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
-                     transition-all"
+              class="w-full px-3.5 py-3 rounded-control border border-surface-border bg-black font-mono text-sm text-ink-900
+                     placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-ink-900/20 focus:border-ink-500
+                     transition-colors"
             />
-            <p class="mt-2 text-[11px] text-ink-500">Users started/second</p>
+            <p class="mt-1.5 text-[11px] text-ink-500">Pengguna baru/detik</p>
           </div>
         </div>
 
         <div>
-          <div class="flex items-center justify-between mb-2.5">
+          <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
             <label for="duration" class="block text-sm font-medium text-ink-700">
-              Run time (menit)
+              Durasi (menit)
             </label>
             <label class="flex items-center gap-2 text-xs text-ink-500 cursor-pointer select-none">
               <input id="duration-unlimited" type="checkbox"
-                class="rounded border-surface-border bg-surface-900 text-signal-go focus:ring-signal-go/30" />
-              Unlimited (sampai di-stop)
+                class="w-3.5 h-3.5 rounded-[4px] border-surface-border bg-black text-ink-900 focus:ring-1 focus:ring-ink-500 focus:ring-offset-0" />
+              Tanpa batas (sampai dihentikan)
             </label>
           </div>
           <input
             id="duration" type="number" min="1" value="3"
-            class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
-                   focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go transition-all
-                   disabled:opacity-40 disabled:cursor-not-allowed"
+            class="w-full px-3.5 py-3 rounded-control border border-surface-border bg-black font-mono text-sm text-ink-900
+                   focus:outline-none focus:ring-2 focus:ring-ink-900/20 focus:border-ink-500 transition-colors
+                   disabled:opacity-35 disabled:cursor-not-allowed"
           />
         </div>
 
         <!-- Target Hosts -->
-        <div class="pt-2 border-t border-surface-border">
-          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2.5 mt-6">
-            Target Hosts
+        <div class="pt-1 border-t border-surface-border">
+          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2 mt-6">
+            Target host
           </label>
           <input
             id="target-url"
             type="text"
-            placeholder="example.com"
+            placeholder="contoh.com"
             autocomplete="off"
-            class="w-full px-4 py-3.5 rounded-xl border border-surface-border bg-surface-900 font-mono text-sm text-ink-900
-                   placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
-                   transition-all"
+            class="w-full px-3.5 py-3 rounded-control border border-surface-border bg-black font-mono text-sm text-ink-900
+                   placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-ink-900/20 focus:border-ink-500
+                   transition-colors"
           />
-          <p id="url-error" class="hidden mt-2.5 text-xs text-signal-stop">
-            URL tidak valid — coba format seperti example.com
+          <p id="url-error" class="hidden mt-2 text-xs text-signal-stop">
+            Format tidak valid — gunakan contoh.com
           </p>
-          <p class="mt-2.5 text-xs text-ink-500">
-            Daftar host, dipisah koma. Contoh: example.com,other.com
+          <p class="mt-2 text-xs text-ink-500">
+            Beberapa host dipisah koma. Contoh: contoh.com,lainnya.com
           </p>
         </div>
 
         <button
           id="submit-btn" type="submit"
-          class="w-full py-4 rounded-xl bg-signal-go text-surface-900 text-sm font-semibold tracking-wide
-                 hover:brightness-110 hover:shadow-cardHover active:scale-[0.99] transition-all duration-150"
+          class="w-full py-3.5 rounded-control bg-ink-900 text-black text-sm font-semibold tracking-wide
+                 hover:bg-white active:scale-[0.99] transition-all duration-150"
         >
-          START
+          Mulai
         </button>
 
         <p id="trigger-error" class="hidden text-xs text-signal-stop text-center"></p>
@@ -172,30 +191,30 @@
     </section>
 
     <!-- ===== Running Card ===== -->
-    <section id="running-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7 md:p-10">
-      <div class="flex items-center justify-between mb-1.5">
+    <section id="running-card" class="hidden animate-fade-slide-up bg-surface border border-surface-border rounded-card p-5 sm:p-7 md:p-9">
+      <div class="flex items-center justify-between mb-1.5 gap-3">
         <span id="running-title" class="text-sm font-medium text-ink-900">Menunggu runner…</span>
-        <span id="running-pct" class="text-xs font-mono text-ink-500">0%</span>
+        <span id="running-pct" class="text-xs font-mono text-ink-500 shrink-0">0%</span>
       </div>
-      <p id="running-target" class="text-xs text-ink-500 mb-6 truncate"></p>
+      <p id="running-target" class="text-xs text-ink-500 mb-6 truncate font-mono"></p>
 
-      <div class="h-1.5 w-full bg-surface-600 rounded-full overflow-hidden mb-6">
-        <div id="progress-bar" class="h-full bg-signal-go rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
+      <div class="h-1 w-full bg-surface-100 rounded-full overflow-hidden mb-6">
+        <div id="progress-bar" class="h-full bg-ink-900 rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
       </div>
 
       <p id="running-detail" class="text-xs text-ink-500 leading-relaxed">
-        Trigger terkirim ke GitHub Actions, menunggu status run…
+        Permintaan dikirim ke GitHub Actions, menunggu status jalannya proses…
       </p>
 
-      <div class="flex items-center gap-4 mt-5">
+      <div class="flex items-center gap-4 mt-5 flex-wrap">
         <a id="running-log-link" href="#" target="_blank" rel="noopener"
-           class="hidden text-xs text-ink-500 hover:text-signal-go underline decoration-ink-300 underline-offset-4">
-          lihat log run ↗
+           class="hidden text-xs text-ink-500 hover:text-ink-900 underline decoration-ink-300 underline-offset-4 transition-colors">
+          Lihat log proses
         </a>
         <button id="stop-btn"
-           class="ml-auto px-4 py-2 rounded-lg bg-signal-stopBg text-signal-stop text-xs font-semibold
-                  hover:brightness-110 active:scale-[0.98] transition-all">
-          STOP
+           class="ml-auto px-4 py-2 rounded-control bg-signal-stopBg border border-signal-stopBorder text-signal-stop text-xs font-semibold
+                  hover:bg-signal-stop hover:text-black hover:border-signal-stop active:scale-[0.98] transition-all">
+          Hentikan
         </button>
       </div>
 
@@ -203,81 +222,83 @@
     </section>
 
     <!-- ===== Results ===== -->
-    <section id="results" class="hidden space-y-5">
+    <section id="results" class="hidden animate-fade-slide-up space-y-4">
 
-      <div class="flex items-center justify-between">
-        <div>
-          <p id="result-target" class="text-sm font-mono text-ink-900 truncate max-w-md"></p>
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div class="min-w-0">
+          <p id="result-target" class="text-sm font-mono text-ink-900 truncate max-w-full sm:max-w-md"></p>
           <p id="result-meta" class="text-xs text-ink-500 mt-1"></p>
           <p id="result-generated-at" class="text-[11px] text-ink-300 mt-0.5"></p>
         </div>
-        <button id="reset-btn" class="text-xs text-ink-500 hover:text-signal-go transition-colors underline decoration-ink-300 underline-offset-4">
-          test baru
+        <button id="reset-btn" class="text-xs text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4 shrink-0">
+          Uji baru
         </button>
       </div>
 
       <!-- Stats grid -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
-          <p class="text-xs text-ink-500 mb-1.5">Total request</p>
-          <p id="stat-total" class="text-2xl font-mono font-semibold text-ink-900">—</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Total permintaan</p>
+          <p id="stat-total" class="text-xl sm:text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
-          <p class="text-xs text-ink-500 mb-1.5">Sukses</p>
-          <p id="stat-success" class="text-2xl font-mono font-semibold text-signal-go">—</p>
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Berhasil</p>
+          <p id="stat-success" class="text-xl sm:text-2xl font-mono font-semibold text-signal-go">—</p>
         </div>
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
           <p class="text-xs text-ink-500 mb-1.5">Gagal</p>
-          <p id="stat-failed" class="text-2xl font-mono font-semibold text-signal-stop">—</p>
+          <p id="stat-failed" class="text-xl sm:text-2xl font-mono font-semibold text-signal-stop">—</p>
         </div>
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
-          <p class="text-xs text-ink-500 mb-1.5">Avg response</p>
-          <p id="stat-avg" class="text-2xl font-mono font-semibold text-ink-900">—</p>
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Rerata respons</p>
+          <p id="stat-avg" class="text-xl sm:text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
+      <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
           <p class="text-xs text-ink-500 mb-1.5">Endpoint diuji</p>
-          <p id="stat-endpoints-tested" class="text-lg font-mono font-semibold text-ink-900">—</p>
+          <p id="stat-endpoints-tested" class="text-base sm:text-lg font-mono font-semibold text-ink-900">—</p>
         </div>
-        <div class="bg-surface-800 border border-surface-border rounded-xl shadow-card p-5">
-          <p class="text-xs text-ink-500 mb-1.5">Endpoint di-skip</p>
-          <p id="stat-endpoints-skipped" class="text-lg font-mono font-semibold text-ink-500">—</p>
+        <div class="bg-surface border border-surface-border rounded-card p-4 sm:p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Endpoint dilewati</p>
+          <p id="stat-endpoints-skipped" class="text-base sm:text-lg font-mono font-semibold text-ink-500">—</p>
         </div>
       </div>
 
-      <div id="status-chips-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-6">
-        <p class="text-sm font-medium text-ink-900 mb-4">Sebaran status code</p>
+      <div id="status-chips-card" class="hidden bg-surface border border-surface-border rounded-card p-5 sm:p-6">
+        <p class="text-sm font-medium text-ink-900 mb-4">Sebaran kode status</p>
         <div id="status-chips" class="flex flex-wrap gap-2"></div>
       </div>
 
-      <div id="chart-card" class="hidden bg-surface-800 border border-surface-border rounded-2xl shadow-card p-7">
-        <p class="text-sm font-medium text-ink-900 mb-5">Response time & RPS selama test</p>
-        <canvas id="response-chart" height="90"></canvas>
+      <div id="chart-card" class="hidden bg-surface border border-surface-border rounded-card p-5 sm:p-7">
+        <p class="text-sm font-medium text-ink-900 mb-5">Waktu respons dan RPS selama pengujian</p>
+        <div class="overflow-x-auto -mx-1 px-1">
+          <canvas id="response-chart" height="90"></canvas>
+        </div>
       </div>
 
-      <div class="bg-surface-800 border border-surface-border rounded-2xl shadow-card overflow-hidden">
-        <div class="px-7 py-5 border-b border-surface-border flex items-center justify-between gap-3">
-          <p class="text-sm font-medium text-ink-900">Breakdown per event</p>
+      <div class="bg-surface border border-surface-border rounded-card overflow-hidden">
+        <div class="px-5 sm:px-7 py-4 sm:py-5 border-b border-surface-border flex items-center justify-between gap-3 flex-wrap">
+          <p class="text-sm font-medium text-ink-900">Rincian per peristiwa</p>
           <select id="breakdown-filter"
-            class="text-xs border border-surface-border rounded-lg px-2.5 py-1.5 bg-surface-900 text-ink-700
-                   focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go">
-            <option value="all">Semua event</option>
+            class="text-xs border border-surface-border rounded-control px-2.5 py-1.5 bg-black text-ink-700
+                   focus:outline-none focus:ring-2 focus:ring-ink-900/20 focus:border-ink-500">
+            <option value="all">Semua peristiwa</option>
           </select>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs text-ink-500 border-b border-surface-border">
-                <th class="px-6 py-3.5 font-medium">Event</th>
-                <th class="px-6 py-3.5 font-medium">Host</th>
-                <th class="px-6 py-3.5 font-medium">Status</th>
-                <th class="px-6 py-3.5 font-medium">Origin</th>
-                <th class="px-6 py-3.5 font-medium text-right">Count</th>
-                <th class="px-6 py-3.5 font-medium text-right">Avg ms</th>
-                <th class="px-6 py-3.5 font-medium text-right">Min ms</th>
-                <th class="px-6 py-3.5 font-medium text-right">Max ms</th>
+                <th class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Peristiwa</th>
+                <th class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Host</th>
+                <th class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                <th class="px-4 sm:px-6 py-3 font-medium whitespace-nowrap">Asal</th>
+                <th class="px-4 sm:px-6 py-3 font-medium text-right whitespace-nowrap">Jumlah</th>
+                <th class="px-4 sm:px-6 py-3 font-medium text-right whitespace-nowrap">Rerata ms</th>
+                <th class="px-4 sm:px-6 py-3 font-medium text-right whitespace-nowrap">Min ms</th>
+                <th class="px-4 sm:px-6 py-3 font-medium text-right whitespace-nowrap">Maks ms</th>
               </tr>
             </thead>
             <tbody id="breakdown-body" class="divide-y divide-surface-border"></tbody>
@@ -287,11 +308,11 @@
 
     </section>
 
-    <footer class="mt-16 flex items-center justify-between text-[11px] text-ink-300">
-      <span>k1nzettt / load test runner</span>
+    <footer class="mt-14 sm:mt-16 flex items-center justify-between text-[11px] text-ink-300 gap-3">
+      <span>k1nzettt / mesin uji beban</span>
       <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
-         class="hover:text-signal-go transition-colors underline decoration-ink-100 underline-offset-4">
-        actions log ↗
+         class="hover:text-ink-500 transition-colors underline decoration-ink-100 underline-offset-4 shrink-0">
+        Log aktivitas
       </a>
     </footer>
 

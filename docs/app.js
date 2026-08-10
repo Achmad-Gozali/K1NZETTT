@@ -1,7 +1,7 @@
 // ============================================================
-// K1NZETTT — frontend logic
-// Alur: trigger workflow via Worker -> polling status run ->
-// fetch results/latest.json asli dari GitHub -> render hasil.
+// K1NZETTT — logika antarmuka
+// Alur: kirim pemicu ke workflow lewat Worker -> polling status ->
+// ambil results/latest.json asli dari GitHub -> tampilkan hasil.
 // ============================================================
 
 const WORKER_URL = "https://k1nzettproxy.achmadgozali.workers.dev";
@@ -12,11 +12,12 @@ const RESULTS_RAW_URL =
   `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/results/latest.json`;
 
 const POLL_INTERVAL_MS = 5000;
-// Unlimited run tidak boleh kena timeout polling frontend — job GitHub
-// sendiri yang jadi batas atas (lihat timeout-minutes di loadtest.yml).
+// Proses tanpa batas tidak boleh terkena timeout polling antarmuka —
+// batas waktu job GitHub sendiri yang jadi batas atas (lihat
+// timeout-minutes di loadtest.yml).
 const POLL_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6 jam
 
-// ---- elements ----
+// ---- elemen ----
 const form = document.getElementById('test-form');
 const urlInput = document.getElementById('target-url');
 const urlError = document.getElementById('url-error');
@@ -27,11 +28,12 @@ const durationUnlimited = document.getElementById('duration-unlimited');
 const submitBtn = document.getElementById('submit-btn');
 const triggerError = document.getElementById('trigger-error');
 
-// status bar (ala Locust: Host / Status / RPS / Failures)
+// status bar (Host / Status / RPS / Gagal)
 const statusHost = document.getElementById('status-host');
 const statusState = document.getElementById('status-state');
 const statusRps = document.getElementById('status-rps');
 const statusFailures = document.getElementById('status-failures');
+const headerDot = document.getElementById('header-dot');
 
 const formCard = document.getElementById('form-card');
 const runningCard = document.getElementById('running-card');
@@ -58,15 +60,15 @@ const breakdownFilter = document.getElementById('breakdown-filter');
 let chartInstance = null;
 let pollTimer = null;
 let lastBreakdownRows = []; // dipakai ulang saat filter berubah
-let currentRunId = null; // dipakai tombol STOP, diisi dari response /status
-let isUnlimitedRun = false; // dipakai buat teks progress saat run tanpa batas waktu
+let currentRunId = null; // dipakai tombol Hentikan, diisi dari respons /status
+let isUnlimitedRun = false; // dipakai untuk teks progres saat proses tanpa batas waktu
 
-// ---- toggle input durasi saat "unlimited" dicentang ----
+// ---- alihkan input durasi saat "tanpa batas" dicentang ----
 durationUnlimited.addEventListener('change', () => {
   duration.disabled = durationUnlimited.checked;
 });
 
-// ---- basic url validation ----
+// ---- validasi dasar url ----
 function normalizeUrl(raw) {
   let v = raw.trim();
   if (!v) return null;
@@ -80,7 +82,7 @@ function normalizeUrl(raw) {
 }
 
 function normalizeHostsInput(raw) {
-  // Dukung multi-host dipisah koma, masing-masing dinormalisasi.
+  // Mendukung banyak host dipisah koma, masing-masing dinormalisasi.
   const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
   if (parts.length === 0) return null;
 
@@ -93,7 +95,7 @@ function normalizeHostsInput(raw) {
   return normalized;
 }
 
-// ---- form submit ----
+// ---- pengiriman form ----
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   const hosts = normalizeHostsInput(urlInput.value);
@@ -125,20 +127,20 @@ resetBtn.addEventListener('click', () => {
   isUnlimitedRun = false;
   stopMessage.classList.add('hidden');
   stopBtn.disabled = false;
-  stopBtn.textContent = 'STOP';
+  stopBtn.textContent = 'Hentikan';
   resultsSection.classList.add('hidden');
   formCard.classList.remove('hidden');
   submitBtn.disabled = false;
-  submitBtn.textContent = 'START';
+  submitBtn.textContent = 'Mulai';
   urlInput.value = '';
   urlInput.focus();
   setStatusBar({ host: '—', state: 'IDLE', rps: '—', failures: '—' });
 });
 
-// ---- stop run ----
+// ---- hentikan proses ----
 stopBtn.addEventListener('click', async () => {
   if (!currentRunId) {
-    stopMessage.textContent = 'Belum ada run yang bisa dihentikan.';
+    stopMessage.textContent = 'Belum ada proses yang bisa dihentikan.';
     stopMessage.classList.remove('hidden');
     return;
   }
@@ -159,24 +161,25 @@ stopBtn.addEventListener('click', async () => {
       throw new Error(data.error || `Gagal menghentikan (status ${res.status})`);
     }
 
-    stopMessage.textContent = 'Permintaan stop terkirim, menunggu runner berhenti…';
+    stopMessage.textContent = 'Permintaan berhenti terkirim, menunggu runner berhenti…';
     stopMessage.classList.remove('hidden');
-    setStatusBar({ state: 'STOPPING' });
-    // polling yang sudah berjalan akan otomatis menangkap status "completed/cancelled"
+    setStatusBar({ state: 'BERHENTI…' });
+    // polling yang sudah berjalan akan otomatis menangkap status selesai/dibatalkan
   } catch (err) {
-    stopMessage.textContent = err.message || 'Gagal menghentikan run.';
+    stopMessage.textContent = err.message || 'Gagal menghentikan proses.';
     stopMessage.classList.remove('hidden');
     stopBtn.disabled = false;
-    stopBtn.textContent = 'STOP';
+    stopBtn.textContent = 'Hentikan';
   }
 });
 
-// ---- status bar helper ----
+// ---- pembantu status bar ----
 function setStatusBar({ host, state, rps, failures }) {
   if (host !== undefined) statusHost.textContent = host;
   if (state !== undefined) {
     statusState.textContent = state;
     statusState.className = 'text-xs font-mono font-semibold ' + stateColorClass(state);
+    updateHeaderDot(state);
   }
   if (rps !== undefined) statusRps.textContent = rps;
   if (failures !== undefined) statusFailures.textContent = failures;
@@ -184,17 +187,30 @@ function setStatusBar({ host, state, rps, failures }) {
 
 function stateColorClass(state) {
   switch (state) {
-    case 'RUNNING': return 'text-signal-go';
-    case 'QUEUED': return 'text-signal-warn';
-    case 'DONE': return 'text-signal-go';
-    case 'FAILED': return 'text-signal-stop';
-    case 'STOPPING': return 'text-signal-warn';
-    case 'STOPPED': return 'text-signal-stop';
+    case 'BERJALAN': return 'text-signal-go';
+    case 'ANTRE': return 'text-signal-warn';
+    case 'SELESAI': return 'text-signal-go';
+    case 'GAGAL': return 'text-signal-stop';
+    case 'BERHENTI…': return 'text-signal-warn';
+    case 'DIHENTIKAN': return 'text-signal-stop';
     default: return 'text-ink-500';
   }
 }
 
-// ---- run flow ----
+function updateHeaderDot(state) {
+  headerDot.classList.remove('bg-signal-go', 'bg-signal-warn', 'bg-signal-stop', 'bg-ink-500', 'animate-pulse-dot');
+  if (state === 'BERJALAN' || state === 'ANTRE' || state === 'BERHENTI…') {
+    headerDot.classList.add('bg-signal-warn', 'animate-pulse-dot');
+  } else if (state === 'SELESAI') {
+    headerDot.classList.add('bg-signal-go');
+  } else if (state === 'GAGAL' || state === 'DIHENTIKAN') {
+    headerDot.classList.add('bg-signal-stop');
+  } else {
+    headerDot.classList.add('bg-ink-500');
+  }
+}
+
+// ---- alur proses ----
 async function startRun(hosts, users, rate, dur) {
   formCard.classList.add('hidden');
   runningCard.classList.remove('hidden');
@@ -203,13 +219,13 @@ async function startRun(hosts, users, rate, dur) {
 
   isUnlimitedRun = dur === 0;
   const targetLabel = hosts.join(', ');
-  const durLabel = isUnlimitedRun ? 'unlimited' : `${dur} menit`;
-  runningTarget.textContent = `${targetLabel} · ${users} user · ramp ${rate}/s · ${durLabel}`;
+  const durLabel = isUnlimitedRun ? 'tanpa batas' : `${dur} menit`;
+  runningTarget.textContent = `${targetLabel} · ${users} pengguna · laju ${rate}/dtk · ${durLabel}`;
   setRunningStage('trigger');
-  setStatusBar({ host: targetLabel, state: 'QUEUED', rps: '—', failures: '—' });
+  setStatusBar({ host: targetLabel, state: 'ANTRE', rps: '—', failures: '—' });
   currentRunId = null;
   stopBtn.disabled = false;
-  stopBtn.textContent = 'STOP';
+  stopBtn.textContent = 'Hentikan';
   stopMessage.classList.add('hidden');
 
   try {
@@ -227,13 +243,13 @@ async function startRun(hosts, users, rate, dur) {
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      throw new Error(data.error || `Gagal trigger (status ${res.status})`);
+      throw new Error(data.error || `Gagal memicu (status ${res.status})`);
     }
 
     setRunningStage('queued');
     pollStatus(targetLabel, users, dur);
   } catch (err) {
-    setStatusBar({ state: 'FAILED' });
+    setStatusBar({ state: 'GAGAL' });
     showTriggerError(err.message || 'Gagal menghubungi Worker.');
   }
 }
@@ -241,20 +257,20 @@ async function startRun(hosts, users, rate, dur) {
 function showTriggerError(message) {
   runningCard.classList.add('hidden');
   formCard.classList.remove('hidden');
-  triggerError.textContent = `Gagal memulai test: ${message}`;
+  triggerError.textContent = `Gagal memulai pengujian: ${message}`;
   triggerError.classList.remove('hidden');
 }
 
 function setRunningStage(stage) {
   const stages = {
-    trigger: { pct: 4, title: 'Mengirim trigger…', detail: 'Mengirim permintaan ke GitHub Actions lewat Worker.' },
-    queued: { pct: 12, title: 'Menunggu antrean…', detail: 'Run sudah terdaftar, menunggu runner GitHub tersedia.' },
+    trigger: { pct: 4, title: 'Mengirim permintaan…', detail: 'Mengirim permintaan ke GitHub Actions melalui Worker.' },
+    queued: { pct: 12, title: 'Menunggu antrean…', detail: 'Proses sudah terdaftar, menunggu runner GitHub tersedia.' },
     in_progress: {
-      pct: isUnlimitedRun ? 55 : 55,
-      title: 'Test sedang berjalan…',
+      pct: 55,
+      title: 'Pengujian sedang berjalan…',
       detail: isUnlimitedRun
-        ? 'Crawling endpoint dan menembak beban tanpa batas waktu. Tekan STOP untuk menghentikan.'
-        : 'Crawling endpoint dan menembak beban di GitHub Actions runner.',
+        ? 'Menjelajahi endpoint dan mengirim beban tanpa batas waktu. Tekan Hentikan untuk menghentikan proses.'
+        : 'Menjelajahi endpoint dan mengirim beban di GitHub Actions runner.',
     },
     completed: { pct: 100, title: 'Selesai.', detail: 'Mengambil hasil akhir…' },
   };
@@ -271,7 +287,7 @@ function pollStatus(targetLabel, users, dur) {
 
   async function tick() {
     if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-      showTriggerError('Timeout menunggu hasil. Cek langsung di GitHub Actions.');
+      showTriggerError('Batas waktu menunggu hasil terlampaui. Periksa langsung di GitHub Actions.');
       return;
     }
 
@@ -290,24 +306,24 @@ function pollStatus(targetLabel, users, dur) {
         if (data.status === 'completed') {
           setRunningStage('completed');
           if (data.conclusion === 'success') {
-            setStatusBar({ state: 'DONE' });
+            setStatusBar({ state: 'SELESAI' });
             await fetchAndShowResults(targetLabel, users, dur);
           } else if (data.conclusion === 'cancelled') {
-            // Run dihentikan lewat STOP: locustfile.py tetap menulis hasil
-            // parsial lewat signal handler, jadi tetap coba tampilkan hasil
-            // daripada langsung dianggap gagal.
-            setStatusBar({ state: 'STOPPED' });
+            // Proses dihentikan lewat tombol Hentikan: locustfile.py tetap
+            // menulis hasil parsial lewat signal handler, jadi tetap coba
+            // tampilkan hasil daripada langsung dianggap gagal.
+            setStatusBar({ state: 'DIHENTIKAN' });
             await fetchAndShowResults(targetLabel, users, dur, { stopped: true });
           } else {
-            setStatusBar({ state: 'FAILED' });
-            showTriggerError(`Run selesai dengan status "${data.conclusion}". Cek log run untuk detail.`);
+            setStatusBar({ state: 'GAGAL' });
+            showTriggerError(`Proses selesai dengan status "${data.conclusion}". Periksa log untuk detail.`);
           }
-          return; // stop polling
+          return; // hentikan polling
         }
 
         const stage = data.status === 'queued' ? 'queued' : 'in_progress';
         setRunningStage(stage);
-        setStatusBar({ state: stage === 'queued' ? 'QUEUED' : 'RUNNING' });
+        setStatusBar({ state: stage === 'queued' ? 'ANTRE' : 'BERJALAN' });
       }
     } catch (err) {
       // Kegagalan jaringan sesaat: jangan hentikan polling, coba lagi.
@@ -319,30 +335,29 @@ function pollStatus(targetLabel, users, dur) {
   tick();
 }
 
-// ---- fetch hasil asli dari GitHub ----
+// ---- ambil hasil asli dari GitHub ----
 async function fetchAndShowResults(targetLabel, users, dur, { stopped = false } = {}) {
   try {
     const res = await fetch(`${RESULTS_RAW_URL}?t=${Date.now()}`);
-    if (!res.ok) throw new Error(`Gagal fetch hasil (status ${res.status})`);
+    if (!res.ok) throw new Error(`Gagal mengambil hasil (status ${res.status})`);
     const data = await res.json();
 
     if (!data.generated_at) {
-      throw new Error('results/latest.json belum berisi hasil test.');
+      throw new Error('results/latest.json belum berisi hasil pengujian.');
     }
 
     showResults(data, targetLabel, { stopped });
   } catch (err) {
     if (stopped) {
-      // Run di-stop tapi hasil belum sempat ke-commit (mis. signal handler
-      // sempat menulis file tapi commit step belum jalan). Beri tahu jelas
-      // daripada menampilkan pesan generik "gagal trigger".
+      // Proses dihentikan tapi hasil belum sempat tersimpan (mis. signal
+      // handler sempat menulis berkas tapi tahap commit belum berjalan).
       showTriggerError(
-        'Test dihentikan, tapi hasil belum sempat tersimpan ke repo. ' +
-        'Cek log run — hasil parsial biasanya tetap ada di artifact.'
+        'Proses dihentikan, tetapi hasil belum sempat tersimpan ke repositori. ' +
+        'Periksa log proses — hasil parsial biasanya tetap tersedia di artifact.'
       );
       return;
     }
-    showTriggerError(err.message || 'Gagal mengambil hasil test.');
+    showTriggerError(err.message || 'Gagal mengambil hasil pengujian.');
   }
 }
 
@@ -351,11 +366,11 @@ function showResults(data, targetLabel, { stopped = false } = {}) {
   resultsSection.classList.remove('hidden');
 
   resultTarget.textContent = data.target_hosts || targetLabel;
-  const durText = data.duration_seconds ? `${Math.round(data.duration_seconds)}s` : '—';
+  const durText = data.duration_seconds ? `${Math.round(data.duration_seconds)} detik` : '—';
   const stoppedLabel = stopped ? ' · dihentikan manual' : '';
   resultMeta.textContent =
     `${durText} · ${data.endpoints_tested ?? 0} endpoint diuji` +
-    (data.endpoints_skipped ? ` · ${data.endpoints_skipped} di-skip` : '') +
+    (data.endpoints_skipped ? ` · ${data.endpoints_skipped} dilewati` : '') +
     stoppedLabel;
 
   resultGeneratedAt.textContent = formatGeneratedAt(data.generated_at);
@@ -370,7 +385,7 @@ function formatGeneratedAt(isoString) {
   if (!isoString) return '';
   try {
     const d = new Date(isoString);
-    return 'dijalankan ' + d.toLocaleString('id-ID', {
+    return 'Dijalankan ' + d.toLocaleString('id-ID', {
       day: 'numeric', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
     }) + ' WIB';
@@ -387,14 +402,14 @@ function renderStats(data) {
   document.getElementById('stat-failed').textContent =
     (data.total_failures ?? 0).toLocaleString('id-ID');
   document.getElementById('stat-avg').textContent =
-    (data.avg_response_ms ?? 0) + 'ms';
+    (data.avg_response_ms ?? 0) + ' ms';
   document.getElementById('stat-endpoints-tested').textContent =
     (data.endpoints_tested ?? 0).toLocaleString('id-ID');
   document.getElementById('stat-endpoints-skipped').textContent =
     (data.endpoints_skipped ?? 0).toLocaleString('id-ID');
 }
 
-// ---- chart: animasikan timeline snapshot dari locustfile.py ----
+// ---- grafik: animasikan cuplikan linimasa dari locustfile.py ----
 function renderTimelineChart(data) {
   const timeline = Array.isArray(data.timeline) ? data.timeline : [];
   const ctx = document.getElementById('response-chart');
@@ -405,8 +420,8 @@ function renderTimelineChart(data) {
   }
 
   if (timeline.length < 2) {
-    // Test terlalu singkat untuk punya snapshot berarti — sembunyikan chart
-    // daripada menampilkan grafik kosong/menyesatkan.
+    // Pengujian terlalu singkat untuk punya cuplikan berarti — sembunyikan
+    // grafik daripada menampilkan grafik kosong/menyesatkan.
     chartCard.classList.add('hidden');
     return;
   }
@@ -416,13 +431,13 @@ function renderTimelineChart(data) {
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: timeline.map(p => `${Math.round(p.t)}s`),
+      labels: timeline.map(p => `${Math.round(p.t)}dtk`),
       datasets: [
         {
-          label: 'Response time (ms)',
+          label: 'Waktu respons (ms)',
           data: [],
-          borderColor: '#0D9488',
-          backgroundColor: 'rgba(13,148,136,0.08)',
+          borderColor: '#50E3A4',
+          backgroundColor: 'rgba(80,227,164,0.08)',
           borderWidth: 2,
           tension: 0.3,
           fill: true,
@@ -432,7 +447,7 @@ function renderTimelineChart(data) {
         {
           label: 'RPS',
           data: [],
-          borderColor: '#D97706',
+          borderColor: '#F5A623',
           borderWidth: 2,
           borderDash: [4, 3],
           tension: 0.3,
@@ -449,29 +464,29 @@ function renderTimelineChart(data) {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { font: { family: 'JetBrains Mono', size: 11 }, color: '#6B7280', usePointStyle: true, boxWidth: 6 },
+          labels: { font: { family: 'ui-monospace, monospace', size: 11 }, color: '#888888', usePointStyle: true, boxWidth: 6 },
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' } },
+        x: { grid: { display: false }, ticks: { font: { family: 'ui-monospace, monospace', size: 10 }, color: '#555555' } },
         y: {
           position: 'left',
-          grid: { color: '#F3F4F6' },
-          ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
-          title: { display: true, text: 'ms', font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
+          grid: { color: '#1F1F1F' },
+          ticks: { font: { family: 'ui-monospace, monospace', size: 10 }, color: '#555555' },
+          title: { display: true, text: 'ms', font: { family: 'ui-monospace, monospace', size: 10 }, color: '#555555' },
         },
         y1: {
           position: 'right',
           grid: { display: false },
-          ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
-          title: { display: true, text: 'req/s', font: { family: 'JetBrains Mono', size: 10 }, color: '#9CA3AF' },
+          ticks: { font: { family: 'ui-monospace, monospace', size: 10 }, color: '#555555' },
+          title: { display: true, text: 'permintaan/dtk', font: { family: 'ui-monospace, monospace', size: 10 }, color: '#555555' },
         },
       },
     },
   });
 
-  // Progressive reveal: data asli (bukan animasi palsu), cuma ditampilkan
-  // bertahap titik demi titik biar chart terasa "membangun diri" saat
+  // Progressive reveal: data asli (bukan animasi palsu), hanya ditampilkan
+  // bertahap titik demi titik agar grafik terasa "membangun diri" saat
   // hasil pertama kali muncul di layar.
   let i = 0;
   const revealStep = () => {
@@ -486,48 +501,48 @@ function renderTimelineChart(data) {
 }
 
 const EVENT_STYLES = {
-  SUCCESS: 'bg-signal-goBg text-signal-go',
-  RETRY: 'bg-signal-goBg text-signal-go',
-  AUTH_EXPIRED: 'bg-signal-warnBg text-signal-warn',
-  EDGE_LIMIT: 'bg-signal-warnBg text-signal-warn',
-  APP_LIMIT: 'bg-signal-warnBg text-signal-warn',
-  SERVER_DOWN: 'bg-signal-stopBg text-signal-stop',
-  EDGE_DOWN: 'bg-signal-stopBg text-signal-stop',
-  SERVER_ERROR: 'bg-signal-stopBg text-signal-stop',
-  EDGE_ERROR: 'bg-signal-stopBg text-signal-stop',
-  SERVER_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
-  EDGE_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
-  NOT_FOUND: 'bg-ink-100 text-ink-700',
-  FORBIDDEN: 'bg-signal-stopBg text-signal-stop',
-  WAF_BLOCKED: 'bg-signal-stopBg text-signal-stop',
-  CONFLICT: 'bg-signal-warnBg text-signal-warn',
-  BAD_REQUEST: 'bg-signal-warnBg text-signal-warn',
-  LEGAL_BLOCKED: 'bg-ink-100 text-ink-700',
-  SOFT_BLOCKED: 'bg-signal-stopBg text-signal-stop',
-  VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn',
-  METHOD_ERROR: 'bg-signal-warnBg text-signal-warn',
-  CONN_ERROR: 'bg-signal-stopBg text-signal-stop',
-  SSL_ERROR: 'bg-signal-stopBg text-signal-stop',
-  CONN_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
-  CONN_RESET: 'bg-signal-stopBg text-signal-stop',
-  CONN_REFUSED: 'bg-signal-stopBg text-signal-stop',
-  DNS_ERROR: 'bg-signal-stopBg text-signal-stop',
-  DEFAULT: 'bg-ink-100 text-ink-700',
+  SUCCESS: 'bg-signal-goBg text-signal-go border border-signal-goBorder',
+  RETRY: 'bg-signal-goBg text-signal-go border border-signal-goBorder',
+  AUTH_EXPIRED: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  EDGE_LIMIT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  APP_LIMIT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  SERVER_DOWN: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  EDGE_DOWN: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  SERVER_ERROR: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  EDGE_ERROR: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  SERVER_TIMEOUT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  EDGE_TIMEOUT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  NOT_FOUND: 'bg-surface-raised text-ink-700 border border-surface-border',
+  FORBIDDEN: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  WAF_BLOCKED: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  CONFLICT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  BAD_REQUEST: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  LEGAL_BLOCKED: 'bg-surface-raised text-ink-700 border border-surface-border',
+  SOFT_BLOCKED: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  METHOD_ERROR: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  CONN_ERROR: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  SSL_ERROR: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  CONN_TIMEOUT: 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder',
+  CONN_RESET: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  CONN_REFUSED: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  DNS_ERROR: 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder',
+  DEFAULT: 'bg-surface-raised text-ink-700 border border-surface-border',
 };
 
 function getBadgeClass(eventType) {
   if (EVENT_STYLES[eventType]) return EVENT_STYLES[eventType];
-  if (eventType && eventType.startsWith('CLIENT_ERROR_')) return 'bg-signal-stopBg text-signal-stop';
+  if (eventType && eventType.startsWith('CLIENT_ERROR_')) return EVENT_STYLES.SERVER_ERROR;
   return EVENT_STYLES.DEFAULT;
 }
 
-// ---- parsing "name" string dari Locust jadi field terpisah ----
+// ---- penguraian string "name" dari Locust jadi field terpisah ----
 // Format asli dari locustfile.py, salah satu dari:
-//   "host [status/origin]"            -> mis. "api.example.com [403/cloudflare]"
-//   "host [status/origin @attempt N]" -> retry/transient
-//   "host [RECOVERED after Nx ...]"   -> retry sukses
+//   "host [status/origin]"            -> mis. "api.contoh.com [403/cloudflare]"
+//   "host [status/origin @attempt N]" -> percobaan ulang/transient
+//   "host [RECOVERED after Nx ...]"   -> percobaan ulang berhasil
 //   "host [conn_error @attempt N]"    -> koneksi gagal total
-//   "host"                            -> tanpa bracket sama sekali (exception akhir)
+//   "host"                            -> tanpa kurung sama sekali (exception akhir)
 function parseEventName(name) {
   if (!name) return { host: '', statusCode: null, origin: null };
 
@@ -558,7 +573,7 @@ function renderStatusChips(data) {
 
   for (const row of breakdown) {
     const { statusCode } = parseEventName(row.endpoint);
-    const key = statusCode || row.event_type; // fallback ke event_type kalau nggak ada status code
+    const key = statusCode || row.event_type; // fallback ke event_type kalau tidak ada kode status
     counts[key] = (counts[key] || 0) + row.count;
   }
 
@@ -572,16 +587,16 @@ function renderStatusChips(data) {
   statusChipsCard.classList.remove('hidden');
   statusChipsWrap.innerHTML = entries.map(([code, count]) => {
     const isNumericStatus = /^\d{3}$/.test(code);
-    let colorClass = 'bg-ink-100 text-ink-700';
+    let colorClass = 'bg-surface-raised text-ink-700 border border-surface-border';
     if (isNumericStatus) {
       const n = parseInt(code, 10);
-      if (n >= 200 && n < 300) colorClass = 'bg-signal-goBg text-signal-go';
-      else if (n === 429 || (n >= 300 && n < 400)) colorClass = 'bg-signal-warnBg text-signal-warn';
-      else if (n >= 400) colorClass = 'bg-signal-stopBg text-signal-stop';
+      if (n >= 200 && n < 300) colorClass = 'bg-signal-goBg text-signal-go border border-signal-goBorder';
+      else if (n === 429 || (n >= 300 && n < 400)) colorClass = 'bg-signal-warnBg text-signal-warn border border-signal-warnBorder';
+      else if (n >= 400) colorClass = 'bg-signal-stopBg text-signal-stop border border-signal-stopBorder';
     }
-    return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium ${colorClass}">
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-mono font-medium ${colorClass}">
       <span>${code}</span>
-      <span class="opacity-60">·</span>
+      <span class="opacity-50">·</span>
       <span>${count.toLocaleString('id-ID')}</span>
     </span>`;
   }).join('');
@@ -599,10 +614,10 @@ function populateBreakdownFilter(rows) {
   const eventTypes = [...new Set(rows.map(r => r.event_type))].sort();
   const current = breakdownFilter.value || 'all';
 
-  breakdownFilter.innerHTML = '<option value="all">Semua event</option>' +
+  breakdownFilter.innerHTML = '<option value="all">Semua peristiwa</option>' +
     eventTypes.map(t => `<option value="${t}">${t}</option>`).join('');
 
-  // pertahankan pilihan filter kalau masih valid, reset ke "all" kalau nggak ada di run baru
+  // pertahankan pilihan filter kalau masih valid, kembalikan ke "semua" jika tidak ada di proses baru
   breakdownFilter.value = eventTypes.includes(current) ? current : 'all';
 }
 
@@ -625,20 +640,20 @@ function applyBreakdownFilter() {
   for (const row of rows) {
     const { host, statusCode, origin } = parseEventName(row.endpoint);
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-ink-100/40 transition-colors';
+    tr.className = 'hover:bg-surface-raised transition-colors';
     const badgeClass = getBadgeClass(row.event_type);
 
     tr.innerHTML = `
-      <td class="px-6 py-3">
-        <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold font-mono ${badgeClass}">${row.event_type}</span>
+      <td class="px-4 sm:px-6 py-3">
+        <span class="inline-block px-2 py-1 rounded-control text-[11px] font-semibold font-mono ${badgeClass}">${row.event_type}</span>
       </td>
-      <td class="px-6 py-3 text-ink-500 font-mono text-xs truncate max-w-[180px]" title="${row.endpoint}">${host || row.endpoint}</td>
-      <td class="px-6 py-3 font-mono text-xs text-ink-700">${statusCode ?? '—'}</td>
-      <td class="px-6 py-3 font-mono text-xs text-ink-500">${origin ?? '—'}</td>
-      <td class="px-6 py-3 text-right font-mono">${row.count.toLocaleString('id-ID')}</td>
-      <td class="px-6 py-3 text-right font-mono text-ink-500">${row.avg_ms}</td>
-      <td class="px-6 py-3 text-right font-mono text-ink-300">${row.min_ms ?? '—'}</td>
-      <td class="px-6 py-3 text-right font-mono text-ink-300">${row.max_ms ?? '—'}</td>
+      <td class="px-4 sm:px-6 py-3 text-ink-500 font-mono text-xs truncate max-w-[140px] sm:max-w-[180px]" title="${row.endpoint}">${host || row.endpoint}</td>
+      <td class="px-4 sm:px-6 py-3 font-mono text-xs text-ink-700">${statusCode ?? '—'}</td>
+      <td class="px-4 sm:px-6 py-3 font-mono text-xs text-ink-500">${origin ?? '—'}</td>
+      <td class="px-4 sm:px-6 py-3 text-right font-mono">${row.count.toLocaleString('id-ID')}</td>
+      <td class="px-4 sm:px-6 py-3 text-right font-mono text-ink-500">${row.avg_ms}</td>
+      <td class="px-4 sm:px-6 py-3 text-right font-mono text-ink-300">${row.min_ms ?? '—'}</td>
+      <td class="px-4 sm:px-6 py-3 text-right font-mono text-ink-300">${row.max_ms ?? '—'}</td>
     `;
     tbody.appendChild(tr);
   }

@@ -1,13 +1,15 @@
 /* ============================================================
    K1NZETTT — pelengkap Tailwind (dimuat via CDN di index.html)
-   File ini cuma untuk hal yang tidak praktis diatur lewat utility
-   class Tailwind langsung: font rendering, scrollbar, dan reduced
-   motion. Styling utama tetap lewat class Tailwind di index.html.
+   File ini hanya untuk hal yang tidak praktis diatur lewat utility
+   class Tailwind langsung: font rendering, scrollbar gelap, dan
+   preferensi reduced motion. Styling utama tetap lewat class
+   Tailwind di index.html.
    ============================================================ */
 
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
 }
 
 body {
@@ -19,17 +21,36 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Scrollbar tipis untuk tabel breakdown di layar sempit */
+/* Scrollbar tipis, disesuaikan untuk latar gelap */
 ::-webkit-scrollbar {
   height: 6px;
   width: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D1D5DB;  /* abu-abu terang, didesain buat background TERANG */
+  background: #333333;
   border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444444;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Fokus keyboard tetap terlihat jelas di atas latar hitam */
+:focus-visible {
+  outline: 2px solid #555555;
+  outline-offset: 2px;
+}
+
+/* Transisi halus saat baris tabel breakdown baru dirender */
+#breakdown-body tr {
+  animation: rowFadeIn 0.25s ease-out;
+}
+
+@keyframes rowFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Hormati preferensi pengguna yang mematikan animasi */
@@ -38,5 +59,6 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
