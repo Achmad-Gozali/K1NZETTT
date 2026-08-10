@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>K1NZETTT · Load Test</title>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -17,11 +17,12 @@
         extend: {
           colors: {
             ink: {
-              900: '#111827',
-              700: '#374151',
-              500: '#6B7280',
-              300: '#D1D5DB',
-              100: '#F3F4F6',
+              900: '#0F172A',
+              700: '#334155',
+              500: '#64748B',
+              300: '#CBD5E1',
+              100: '#E2E8F0',
+              50: '#F8FAFC',
             },
             signal: {
               go: '#0D9488',
@@ -32,6 +33,10 @@
               stopBg: '#FEF2F2',
             },
           },
+          boxShadow: {
+            card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.10)',
+            cardHover: '0 1px 2px rgba(15,23,42,0.04), 0 16px 32px -12px rgba(15,23,42,0.14)',
+          },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
@@ -41,18 +46,18 @@
     };
   </script>
 </head>
-<body class="bg-white text-ink-900 font-sans antialiased">
+<body class="bg-ink-50 text-ink-900 font-sans antialiased">
 
-  <div class="max-w-3xl mx-auto px-6 py-12 md:py-20">
+  <div class="max-w-3xl mx-auto px-6 py-14 md:py-24">
 
     <!-- ===== Header ===== -->
-    <header class="mb-12 flex items-center justify-between">
+    <header class="mb-10 flex items-center justify-between">
       <div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="w-2 h-2 rounded-full bg-signal-go"></span>
-          <span class="text-xs font-mono text-ink-500 tracking-wide">K1NZETTT</span>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-signal-go"></span>
+          <span class="text-[11px] font-mono text-ink-500 tracking-[0.15em] uppercase">K1nzettt</span>
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight">Load Test</h1>
+        <h1 class="text-[28px] font-semibold tracking-tight text-ink-900">Load Test</h1>
       </div>
       <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
          class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
@@ -61,11 +66,11 @@
     </header>
 
     <!-- ===== Form Card ===== -->
-    <section id="form-card" class="border border-ink-100 rounded-2xl p-6 md:p-8">
-      <form id="test-form" class="space-y-6">
+    <section id="form-card" class="bg-white border border-ink-100 rounded-2xl shadow-card p-7 md:p-10">
+      <form id="test-form" class="space-y-7">
 
         <div>
-          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2">
+          <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2.5">
             Target URL
           </label>
           <input
@@ -73,45 +78,45 @@
             type="text"
             placeholder="example.com"
             autocomplete="off"
-            class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
-                   placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go
-                   transition-colors"
+            class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
+                   placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white
+                   transition-all"
           />
-          <p id="url-error" class="hidden mt-2 text-xs font-mono text-signal-stop">
+          <p id="url-error" class="hidden mt-2.5 text-xs font-mono text-signal-stop">
             URL tidak valid — coba format seperti example.com
           </p>
-          <p class="mt-2 text-xs text-ink-500">
+          <p class="mt-2.5 text-xs text-ink-500">
             Bisa lebih dari satu host, pisahkan dengan koma.
           </p>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2">
+            <label for="user-count" class="block text-sm font-medium text-ink-700 mb-2.5">
               Simulasi user
             </label>
             <input
               id="user-count" type="number" min="1" value="20"
-              class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
-                     focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go transition-colors"
+              class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
+                     focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white transition-all"
             />
           </div>
           <div>
-            <label for="duration" class="block text-sm font-medium text-ink-700 mb-2">
+            <label for="duration" class="block text-sm font-medium text-ink-700 mb-2.5">
               Durasi (menit)
             </label>
             <input
               id="duration" type="number" min="1" value="3"
-              class="w-full px-4 py-3 rounded-lg border border-ink-100 bg-white font-mono text-sm
-                     focus:outline-none focus:ring-2 focus:ring-signal-go/30 focus:border-signal-go transition-colors"
+              class="w-full px-4 py-3.5 rounded-xl border border-ink-100 bg-ink-50/50 font-mono text-sm text-ink-900
+                     focus:outline-none focus:ring-4 focus:ring-signal-go/10 focus:border-signal-go focus:bg-white transition-all"
             />
           </div>
         </div>
 
         <button
           id="submit-btn" type="submit"
-          class="w-full py-3.5 rounded-lg bg-ink-900 text-white text-sm font-medium
-                 hover:bg-ink-700 active:scale-[0.99] transition-all"
+          class="w-full py-4 rounded-xl bg-ink-900 text-white text-sm font-medium tracking-wide
+                 hover:bg-ink-700 hover:shadow-cardHover active:scale-[0.99] transition-all duration-150"
         >
           Mulai load test
         </button>
@@ -121,14 +126,14 @@
     </section>
 
     <!-- ===== Running Card ===== -->
-    <section id="running-card" class="hidden border border-ink-100 rounded-2xl p-6 md:p-8">
-      <div class="flex items-center justify-between mb-1">
+    <section id="running-card" class="hidden bg-white border border-ink-100 rounded-2xl shadow-card p-7 md:p-10">
+      <div class="flex items-center justify-between mb-1.5">
         <span id="running-title" class="text-sm font-medium text-ink-900">Menunggu runner…</span>
         <span id="running-pct" class="text-xs font-mono text-ink-500">0%</span>
       </div>
-      <p id="running-target" class="text-xs font-mono text-ink-500 mb-5 truncate"></p>
+      <p id="running-target" class="text-xs font-mono text-ink-500 mb-6 truncate"></p>
 
-      <div class="h-1.5 w-full bg-ink-100 rounded-full overflow-hidden mb-5">
+      <div class="h-1.5 w-full bg-ink-100 rounded-full overflow-hidden mb-6">
         <div id="progress-bar" class="h-full bg-signal-go rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
       </div>
 
@@ -137,17 +142,17 @@
       </p>
 
       <a id="running-log-link" href="#" target="_blank" rel="noopener"
-         class="hidden mt-4 inline-block text-xs font-mono text-ink-500 hover:text-ink-900 underline decoration-ink-300 underline-offset-4">
+         class="hidden mt-5 inline-block text-xs font-mono text-ink-500 hover:text-ink-900 underline decoration-ink-300 underline-offset-4">
         lihat log run ↗
       </a>
     </section>
 
     <!-- ===== Results ===== -->
-    <section id="results" class="hidden space-y-6">
+    <section id="results" class="hidden space-y-5">
 
       <div class="flex items-center justify-between">
         <div>
-          <p id="result-target" class="text-sm font-mono text-ink-500 truncate max-w-md"></p>
+          <p id="result-target" class="text-sm font-mono text-ink-900 truncate max-w-md"></p>
           <p id="result-meta" class="text-xs text-ink-500 mt-1"></p>
         </div>
         <button id="reset-btn" class="text-xs font-mono text-ink-500 hover:text-ink-900 transition-colors underline decoration-ink-300 underline-offset-4">
@@ -157,43 +162,43 @@
 
       <!-- Stats grid -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div class="border border-ink-100 rounded-xl p-4">
-          <p class="text-xs text-ink-500 mb-1">Total request</p>
-          <p id="stat-total" class="text-xl font-mono font-semibold">—</p>
+        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Total request</p>
+          <p id="stat-total" class="text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
-        <div class="border border-ink-100 rounded-xl p-4">
-          <p class="text-xs text-ink-500 mb-1">Sukses</p>
-          <p id="stat-success" class="text-xl font-mono font-semibold text-signal-go">—</p>
+        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Sukses</p>
+          <p id="stat-success" class="text-2xl font-mono font-semibold text-signal-go">—</p>
         </div>
-        <div class="border border-ink-100 rounded-xl p-4">
-          <p class="text-xs text-ink-500 mb-1">Gagal</p>
-          <p id="stat-failed" class="text-xl font-mono font-semibold text-signal-stop">—</p>
+        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Gagal</p>
+          <p id="stat-failed" class="text-2xl font-mono font-semibold text-signal-stop">—</p>
         </div>
-        <div class="border border-ink-100 rounded-xl p-4">
-          <p class="text-xs text-ink-500 mb-1">Avg response</p>
-          <p id="stat-avg" class="text-xl font-mono font-semibold">—</p>
+        <div class="bg-white border border-ink-100 rounded-xl shadow-card p-5">
+          <p class="text-xs text-ink-500 mb-1.5">Avg response</p>
+          <p id="stat-avg" class="text-2xl font-mono font-semibold text-ink-900">—</p>
         </div>
       </div>
 
       <!-- Timeline chart -->
-      <div id="chart-card" class="hidden border border-ink-100 rounded-2xl p-6">
-        <p class="text-sm font-medium text-ink-900 mb-4">Response time & RPS selama test</p>
+      <div id="chart-card" class="hidden bg-white border border-ink-100 rounded-2xl shadow-card p-7">
+        <p class="text-sm font-medium text-ink-900 mb-5">Response time & RPS selama test</p>
         <canvas id="response-chart" height="90"></canvas>
       </div>
 
       <!-- Breakdown table -->
-      <div class="border border-ink-100 rounded-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-ink-100">
+      <div class="bg-white border border-ink-100 rounded-2xl shadow-card overflow-hidden">
+        <div class="px-7 py-5 border-b border-ink-100">
           <p class="text-sm font-medium text-ink-900">Breakdown per event</p>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs text-ink-500 border-b border-ink-100">
-                <th class="px-6 py-3 font-medium">Event</th>
-                <th class="px-6 py-3 font-medium">Endpoint</th>
-                <th class="px-6 py-3 font-medium text-right">Count</th>
-                <th class="px-6 py-3 font-medium text-right">Avg ms</th>
+                <th class="px-7 py-3.5 font-medium">Event</th>
+                <th class="px-7 py-3.5 font-medium">Endpoint</th>
+                <th class="px-7 py-3.5 font-medium text-right">Count</th>
+                <th class="px-7 py-3.5 font-medium text-right">Avg ms</th>
               </tr>
             </thead>
             <tbody id="breakdown-body" class="divide-y divide-ink-100"></tbody>
