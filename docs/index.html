@@ -61,7 +61,7 @@
       <div>
         <div class="flex items-center gap-2 mb-2">
           <span class="w-1.5 h-1.5 rounded-full bg-signal-go"></span>
-          <span class="text-[11px] font-mono text-ink-500 tracking-[0.15em] uppercase">K1nzettt</span>
+          <span class="text-[11px] text-ink-500 tracking-[0.1em] uppercase">K1nzettt</span>
         </div>
         <h1 class="text-[28px] font-semibold tracking-tight text-ink-900">Load Test</h1>
       </div>
@@ -69,19 +69,19 @@
       <!-- Status bar: Host / Status / RPS / Failures (ala Locust) -->
       <div id="status-bar" class="flex items-stretch gap-0 bg-surface-800 border border-surface-border rounded-xl overflow-hidden">
         <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Host</p>
+          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Host</p>
           <p id="status-host" class="text-xs font-mono text-ink-900 max-w-[140px] truncate">—</p>
         </div>
         <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Status</p>
+          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Status</p>
           <p id="status-state" class="text-xs font-mono font-semibold text-ink-500">IDLE</p>
         </div>
         <div class="px-4 py-2.5 border-r border-surface-border">
-          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">RPS</p>
+          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">RPS</p>
           <p id="status-rps" class="text-xs font-mono text-ink-500">—</p>
         </div>
         <div class="px-4 py-2.5">
-          <p class="text-[10px] font-mono text-ink-500 uppercase tracking-wide mb-0.5">Failures</p>
+          <p class="text-[10px] text-ink-500 uppercase tracking-wide mb-0.5">Failures</p>
           <p id="status-failures" class="text-xs font-mono text-ink-500">—</p>
         </div>
       </div>
@@ -129,7 +129,7 @@
           />
         </div>
 
-        <!-- Target Hosts — equivalent "Custom parameters" Locust -->
+        <!-- Target Hosts -->
         <div class="pt-2 border-t border-surface-border">
           <label for="target-url" class="block text-sm font-medium text-ink-700 mb-2.5 mt-6">
             Target Hosts
@@ -143,7 +143,7 @@
                    placeholder:text-ink-300 focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go
                    transition-all"
           />
-          <p id="url-error" class="hidden mt-2.5 text-xs font-mono text-signal-stop">
+          <p id="url-error" class="hidden mt-2.5 text-xs text-signal-stop">
             URL tidak valid — coba format seperti example.com
           </p>
           <p class="mt-2.5 text-xs text-ink-500">
@@ -159,7 +159,7 @@
           START
         </button>
 
-        <p id="trigger-error" class="hidden text-xs font-mono text-signal-stop text-center"></p>
+        <p id="trigger-error" class="hidden text-xs text-signal-stop text-center"></p>
       </form>
     </section>
 
@@ -169,7 +169,7 @@
         <span id="running-title" class="text-sm font-medium text-ink-900">Menunggu runner…</span>
         <span id="running-pct" class="text-xs font-mono text-ink-500">0%</span>
       </div>
-      <p id="running-target" class="text-xs font-mono text-ink-500 mb-6 truncate"></p>
+      <p id="running-target" class="text-xs text-ink-500 mb-6 truncate"></p>
 
       <div class="h-1.5 w-full bg-surface-600 rounded-full overflow-hidden mb-6">
         <div id="progress-bar" class="h-full bg-signal-go rounded-full transition-all duration-700 ease-out" style="width: 4%"></div>
@@ -179,10 +179,19 @@
         Trigger terkirim ke GitHub Actions, menunggu status run…
       </p>
 
-      <a id="running-log-link" href="#" target="_blank" rel="noopener"
-         class="hidden mt-5 inline-block text-xs font-mono text-ink-500 hover:text-signal-go underline decoration-ink-300 underline-offset-4">
-        lihat log run ↗
-      </a>
+      <div class="flex items-center gap-4 mt-5">
+        <a id="running-log-link" href="#" target="_blank" rel="noopener"
+           class="hidden text-xs text-ink-500 hover:text-signal-go underline decoration-ink-300 underline-offset-4">
+          lihat log run ↗
+        </a>
+        <button id="stop-btn"
+           class="ml-auto px-4 py-2 rounded-lg bg-signal-stopBg text-signal-stop text-xs font-semibold
+                  hover:brightness-110 active:scale-[0.98] transition-all">
+          STOP
+        </button>
+      </div>
+
+      <p id="stop-message" class="hidden mt-4 text-xs text-signal-warn"></p>
     </section>
 
     <!-- ===== Results ===== -->
@@ -192,9 +201,9 @@
         <div>
           <p id="result-target" class="text-sm font-mono text-ink-900 truncate max-w-md"></p>
           <p id="result-meta" class="text-xs text-ink-500 mt-1"></p>
-          <p id="result-generated-at" class="text-[11px] font-mono text-ink-300 mt-0.5"></p>
+          <p id="result-generated-at" class="text-[11px] text-ink-300 mt-0.5"></p>
         </div>
-        <button id="reset-btn" class="text-xs font-mono text-ink-500 hover:text-signal-go transition-colors underline decoration-ink-300 underline-offset-4">
+        <button id="reset-btn" class="text-xs text-ink-500 hover:text-signal-go transition-colors underline decoration-ink-300 underline-offset-4">
           test baru
         </button>
       </div>
@@ -244,7 +253,7 @@
         <div class="px-7 py-5 border-b border-surface-border flex items-center justify-between gap-3">
           <p class="text-sm font-medium text-ink-900">Breakdown per event</p>
           <select id="breakdown-filter"
-            class="text-xs font-mono border border-surface-border rounded-lg px-2.5 py-1.5 bg-surface-900 text-ink-700
+            class="text-xs border border-surface-border rounded-lg px-2.5 py-1.5 bg-surface-900 text-ink-700
                    focus:outline-none focus:ring-4 focus:ring-signal-go/15 focus:border-signal-go">
             <option value="all">Semua event</option>
           </select>
@@ -270,7 +279,7 @@
 
     </section>
 
-    <footer class="mt-16 flex items-center justify-between text-[11px] font-mono text-ink-300">
+    <footer class="mt-16 flex items-center justify-between text-[11px] text-ink-300">
       <span>k1nzettt / load test runner</span>
       <a href="https://github.com/Achmad-Gozali/K1NZETTT/actions" target="_blank" rel="noopener"
          class="hover:text-signal-go transition-colors underline decoration-ink-100 underline-offset-4">

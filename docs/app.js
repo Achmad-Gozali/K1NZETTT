@@ -41,6 +41,8 @@ const runningDetail = document.getElementById('running-detail');
 const runningPct = document.getElementById('running-pct');
 const runningTarget = document.getElementById('running-target');
 const runningLogLink = document.getElementById('running-log-link');
+const stopBtn = document.getElementById('stop-btn');
+const stopMessage = document.getElementById('stop-message');
 
 const resultTarget = document.getElementById('result-target');
 const resultMeta = document.getElementById('result-meta');
@@ -53,6 +55,7 @@ const breakdownFilter = document.getElementById('breakdown-filter');
 let chartInstance = null;
 let pollTimer = null;
 let lastBreakdownRows = []; // dipakai ulang saat filter berubah
+let currentRunId = null; // dipakai tombol STOP, diisi dari response /status
 
 // ---- basic url validation ----
 function normalizeUrl(raw) {
@@ -109,6 +112,10 @@ resetBtn.addEventListener('click', () => {
     chartInstance = null;
   }
   lastBreakdownRows = [];
+  currentRunId = null;
+  stopMessage.classList.add('hidden');
+  stopBtn.disabled = false;
+  stopBtn.textContent = 'STOP';
   resultsSection.classList.add('hidden');
   formCard.classList.remove('hidden');
   submitBtn.disabled = false;
@@ -116,6 +123,42 @@ resetBtn.addEventListener('click', () => {
   urlInput.value = '';
   urlInput.focus();
   setStatusBar({ host: '—', state: 'IDLE', rps: '—', failures: '—' });
+});
+
+// ---- stop run ----
+stopBtn.addEventListener('click', async () => {
+  if (!currentRunId) {
+    stopMessage.textContent = 'Belum ada run yang bisa dihentikan.';
+    stopMessage.classList.remove('hidden');
+    return;
+  }
+
+  stopBtn.disabled = true;
+  stopBtn.textContent = 'Menghentikan…';
+  stopMessage.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${WORKER_URL}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_id: currentRunId }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Gagal menghentikan (status ${res.status})`);
+    }
+
+    stopMessage.textContent = 'Permintaan stop terkirim, menunggu runner berhenti…';
+    stopMessage.classList.remove('hidden');
+    setStatusBar({ state: 'STOPPING' });
+    // polling yang sudah berjalan akan otomatis menangkap status "completed/cancelled"
+  } catch (err) {
+    stopMessage.textContent = err.message || 'Gagal menghentikan run.';
+    stopMessage.classList.remove('hidden');
+    stopBtn.disabled = false;
+    stopBtn.textContent = 'STOP';
+  }
 });
 
 // ---- status bar helper ----
@@ -135,6 +178,8 @@ function stateColorClass(state) {
     case 'QUEUED': return 'text-signal-warn';
     case 'DONE': return 'text-signal-go';
     case 'FAILED': return 'text-signal-stop';
+    case 'STOPPING': return 'text-signal-warn';
+    case 'STOPPED': return 'text-signal-stop';
     default: return 'text-ink-500';
   }
 }
@@ -150,6 +195,10 @@ async function startRun(hosts, users, rate, dur) {
   runningTarget.textContent = `${targetLabel} · ${users} user · ramp ${rate}/s · ${dur} menit`;
   setRunningStage('trigger');
   setStatusBar({ host: targetLabel, state: 'QUEUED', rps: '—', failures: '—' });
+  currentRunId = null;
+  stopBtn.disabled = false;
+  stopBtn.textContent = 'STOP';
+  stopMessage.classList.add('hidden');
 
   try {
     const res = await fetch(`${WORKER_URL}/trigger`, {
@@ -213,6 +262,8 @@ function pollStatus(targetLabel, users, dur) {
       const data = await res.json();
 
       if (data.state === 'found') {
+        currentRunId = data.run_id;
+
         if (data.html_url) {
           runningLogLink.href = data.html_url;
           runningLogLink.classList.remove('hidden');
@@ -223,6 +274,12 @@ function pollStatus(targetLabel, users, dur) {
           if (data.conclusion === 'success') {
             setStatusBar({ state: 'DONE' });
             await fetchAndShowResults(targetLabel, users, dur);
+          } else if (data.conclusion === 'cancelled') {
+            setStatusBar({ state: 'STOPPED' });
+            runningCard.classList.add('hidden');
+            formCard.classList.remove('hidden');
+            triggerError.textContent = 'Test dihentikan.';
+            triggerError.classList.remove('hidden');
           } else {
             setStatusBar({ state: 'FAILED' });
             showTriggerError(`Run selesai dengan status "${data.conclusion}". Cek log run untuk detail.`);
@@ -420,6 +477,12 @@ const EVENT_STYLES = {
   VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn',
   METHOD_ERROR: 'bg-signal-warnBg text-signal-warn',
   CONN_ERROR: 'bg-signal-stopBg text-signal-stop',
+  // v6: klasifikasi exception connection-level yang lebih spesifik
+  SSL_ERROR: 'bg-signal-stopBg text-signal-stop',
+  CONN_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
+  CONN_RESET: 'bg-signal-stopBg text-signal-stop',
+  CONN_REFUSED: 'bg-signal-stopBg text-signal-stop',
+  DNS_ERROR: 'bg-signal-stopBg text-signal-stop',
   DEFAULT: 'bg-ink-100 text-ink-700',
 };
 

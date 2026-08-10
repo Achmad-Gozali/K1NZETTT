@@ -25,7 +25,7 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
+  background: #D1D5DB;  /* abu-abu terang, didesain buat background TERANG */
   border-radius: 999px;
 }
 ::-webkit-scrollbar-track {
