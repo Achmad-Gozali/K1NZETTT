@@ -1,1 +1,133 @@
-{"generated_at": null, "message": "Belum ada test yang dijalankan."}
+{
+  "generated_at": "2026-08-10T08:54:21Z",
+  "duration_seconds": 180.73,
+  "target_hosts": "https://pemutihanpajakkendaraan-cwn.obnew.click/",
+  "endpoints_tested": 1,
+  "endpoints_skipped": 0,
+  "total_requests": 3809,
+  "total_success": 0,
+  "total_failures": 3809,
+  "avg_response_ms": 19394.0,
+  "breakdown": [
+    {
+      "event_type": "GET",
+      "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click",
+      "count": 3486,
+      "avg_ms": 21374.5,
+      "min_ms": 833.3,
+      "max_ms": 30267.3
+    },
+    {
+      "event_type": "CLIENT_ERROR_0",
+      "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [0/unknown]",
+      "count": 323,
+      "avg_ms": 0.0,
+      "min_ms": 0,
+      "max_ms": 0
+    }
+  ],
+  "timeline": [
+    {
+      "t": 0.0,
+      "total_requests": 0,
+      "avg_response_ms": 0,
+      "rps": 0
+    },
+    {
+      "t": 10.0,
+      "total_requests": 111,
+      "avg_response_ms": 4490.7,
+      "rps": 7.3
+    },
+    {
+      "t": 20.0,
+      "total_requests": 194,
+      "avg_response_ms": 5965.0,
+      "rps": 8.6
+    },
+    {
+      "t": 30.0,
+      "total_requests": 296,
+      "avg_response_ms": 7868.3,
+      "rps": 11.8
+    },
+    {
+      "t": 40.0,
+      "total_requests": 376,
+      "avg_response_ms": 9344.1,
+      "rps": 8.2
+    },
+    {
+      "t": 50.0,
+      "total_requests": 518,
+      "avg_response_ms": 11801.5,
+      "rps": 15.5
+    },
+    {
+      "t": 60.0,
+      "total_requests": 717,
+      "avg_response_ms": 13274.0,
+      "rps": 12.1
+    },
+    {
+      "t": 70.0,
+      "total_requests": 842,
+      "avg_response_ms": 14278.6,
+      "rps": 12.1
+    },
+    {
+      "t": 80.0,
+      "total_requests": 1071,
+      "avg_response_ms": 15222.8,
+      "rps": 26.0
+    },
+    {
+      "t": 90.0,
+      "total_requests": 1224,
+      "avg_response_ms": 15673.5,
+      "rps": 15.9
+    },
+    {
+      "t": 100.0,
+      "total_requests": 1430,
+      "avg_response_ms": 16559.0,
+      "rps": 20.4
+    },
+    {
+      "t": 110.0,
+      "total_requests": 1646,
+      "avg_response_ms": 17274.6,
+      "rps": 25.0
+    },
+    {
+      "t": 120.0,
+      "total_requests": 1925,
+      "avg_response_ms": 18093.0,
+      "rps": 28.9
+    },
+    {
+      "t": 130.0,
+      "total_requests": 2194,
+      "avg_response_ms": 18598.5,
+      "rps": 21.8
+    },
+    {
+      "t": 140.0,
+      "total_requests": 2393,
+      "avg_response_ms": 18982.2,
+      "rps": 18.7
+    },
+    {
+      "t": 150.0,
+      "total_requests": 2748,
+      "avg_response_ms": 19472.1,
+      "rps": 28.1
+    },
+    {
+      "t": 160.0,
+      "total_requests": 3258,
+      "avg_response_ms": 19437.9,
+      "rps": 33.1
+    }
+  ]
+}
