@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-08-10T09:29:45Z",
-  "duration_seconds": 184.94,
+  "generated_at": "2026-08-10T09:50:43Z",
+  "duration_seconds": 183.72,
   "target_hosts": "https://pemutihanpajakkendaraan-cwn.obnew.click/",
   "endpoints_tested": 1,
   "endpoints_skipped": 0,
-  "total_requests": 33781,
+  "total_requests": 27807,
   "total_success": 0,
-  "total_failures": 33781,
-  "avg_response_ms": 30904.2,
+  "total_failures": 27807,
+  "avg_response_ms": 34396.4,
   "breakdown": [
     {
       "event_type": "GET",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click",
-      "count": 22692,
-      "avg_ms": 53895.6,
-      "min_ms": 359.3,
-      "max_ms": 170533.9
+      "count": 18741,
+      "avg_ms": 63139.8,
+      "min_ms": 290.8,
+      "max_ms": 168635.8
     },
     {
       "event_type": "CLIENT_ERROR_0",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [0/unknown]",
-      "count": 6411,
+      "count": 6020,
       "avg_ms": 0.0,
       "min_ms": 0,
       "max_ms": 0
@@ -28,42 +28,42 @@
     {
       "event_type": "CLIENT_ERROR_525",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [525/cloudflare]",
-      "count": 4143,
-      "avg_ms": 15351.9,
-      "min_ms": 359.1,
-      "max_ms": 163618.6
+      "count": 2645,
+      "avg_ms": 10418.9,
+      "min_ms": 322.6,
+      "max_ms": 105460.9
     },
     {
       "event_type": "EDGE_ERROR",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [500/cloudflare @attempt 1]",
-      "count": 488,
-      "avg_ms": 24286.6,
-      "min_ms": 492.4,
-      "max_ms": 133861.3
+      "count": 355,
+      "avg_ms": 17229.4,
+      "min_ms": 290.5,
+      "max_ms": 86679.5
     },
     {
       "event_type": "EDGE_ERROR",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [500/cloudflare @attempt 2]",
       "count": 40,
-      "avg_ms": 1434.2,
-      "min_ms": 736.1,
-      "max_ms": 2053.3
-    },
-    {
-      "event_type": "CLIENT_ERROR_520",
-      "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [520/cloudflare]",
-      "count": 6,
-      "avg_ms": 69001.7,
-      "min_ms": 1019.8,
-      "max_ms": 145565.9
+      "avg_ms": 1518.6,
+      "min_ms": 353.1,
+      "max_ms": 4572.1
     },
     {
       "event_type": "EDGE_ERROR",
       "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [500/cloudflare @attempt 3]",
-      "count": 1,
-      "avg_ms": 1218.1,
-      "min_ms": 1218.1,
-      "max_ms": 1218.1
+      "count": 4,
+      "avg_ms": 1693.5,
+      "min_ms": 1245.3,
+      "max_ms": 2499.7
+    },
+    {
+      "event_type": "CLIENT_ERROR_520",
+      "endpoint": "pemutihanpajakkendaraan-cwn.obnew.click [520/cloudflare]",
+      "count": 2,
+      "avg_ms": 1239.7,
+      "min_ms": 1209.6,
+      "max_ms": 1269.9
     }
   ],
   "timeline": [
@@ -74,100 +74,100 @@
       "rps": 0
     },
     {
-      "t": 10.2,
-      "total_requests": 16,
-      "avg_response_ms": 8158.7,
+      "t": 10.0,
+      "total_requests": 10,
+      "avg_response_ms": 9450.7,
       "rps": 0.0
     },
     {
-      "t": 20.3,
-      "total_requests": 202,
-      "avg_response_ms": 13411.4,
-      "rps": 15.8
+      "t": 20.0,
+      "total_requests": 143,
+      "avg_response_ms": 13930.1,
+      "rps": 9.4
     },
     {
-      "t": 30.5,
-      "total_requests": 388,
-      "avg_response_ms": 16793.5,
-      "rps": 19.7
+      "t": 30.1,
+      "total_requests": 281,
+      "avg_response_ms": 17452.7,
+      "rps": 15.0
     },
     {
-      "t": 40.5,
-      "total_requests": 1178,
-      "avg_response_ms": 20043.0,
-      "rps": 18.2
+      "t": 40.2,
+      "total_requests": 508,
+      "avg_response_ms": 23942.5,
+      "rps": 20.7
     },
     {
-      "t": 50.6,
-      "total_requests": 8832,
-      "avg_response_ms": 10449.8,
-      "rps": 448.1
+      "t": 50.2,
+      "total_requests": 6241,
+      "avg_response_ms": 12189.7,
+      "rps": 249.4
     },
     {
-      "t": 60.8,
-      "total_requests": 12019,
-      "avg_response_ms": 11925.7,
-      "rps": 284.9
+      "t": 60.4,
+      "total_requests": 10605,
+      "avg_response_ms": 12043.3,
+      "rps": 381.2
     },
     {
-      "t": 70.9,
-      "total_requests": 13355,
-      "avg_response_ms": 13560.3,
-      "rps": 113.9
+      "t": 70.6,
+      "total_requests": 12936,
+      "avg_response_ms": 14379.3,
+      "rps": 178.0
     },
     {
-      "t": 81.1,
-      "total_requests": 17657,
-      "avg_response_ms": 14680.8,
-      "rps": 212.6
+      "t": 80.8,
+      "total_requests": 14502,
+      "avg_response_ms": 16058.5,
+      "rps": 64.8
     },
     {
-      "t": 91.1,
-      "total_requests": 20248,
-      "avg_response_ms": 15584.7,
-      "rps": 224.4
+      "t": 91.0,
+      "total_requests": 16473,
+      "avg_response_ms": 16559.9,
+      "rps": 168.8
     },
     {
       "t": 101.2,
-      "total_requests": 21661,
-      "avg_response_ms": 17653.0,
-      "rps": 100.2
+      "total_requests": 18069,
+      "avg_response_ms": 18660.6,
+      "rps": 105.8
     },
     {
       "t": 111.2,
-      "total_requests": 24317,
-      "avg_response_ms": 19639.3,
-      "rps": 140.5
+      "total_requests": 19380,
+      "avg_response_ms": 20268.2,
+      "rps": 82.4
     },
     {
-      "t": 121.2,
-      "total_requests": 26377,
-      "avg_response_ms": 21484.1,
-      "rps": 167.3
+      "t": 121.5,
+      "total_requests": 20862,
+      "avg_response_ms": 22107.7,
+      "rps": 102.0
     },
     {
-      "t": 131.3,
-      "total_requests": 27895,
-      "avg_response_ms": 23681.2,
-      "rps": 101.2
+      "t": 131.7,
+      "total_requests": 22266,
+      "avg_response_ms": 24555.0,
+      "rps": 92.6
     },
     {
-      "t": 141.4,
-      "total_requests": 29233,
-      "avg_response_ms": 24574.7,
-      "rps": 85.0
+      "t": 142.0,
+      "total_requests": 23706,
+      "avg_response_ms": 27114.4,
+      "rps": 93.4
     },
     {
-      "t": 151.5,
-      "total_requests": 30688,
-      "avg_response_ms": 26085.8,
-      "rps": 95.4
+      "t": 152.1,
+      "total_requests": 25155,
+      "avg_response_ms": 29682.9,
+      "rps": 86.0
     },
     {
-      "t": 161.7,
-      "total_requests": 32179,
-      "avg_response_ms": 28449.2,
-      "rps": 100.6
+      "t": 162.2,
+      "total_requests": 26541,
+      "avg_response_ms": 32148.1,
+      "rps": 92.8
     }
   ]
 }
