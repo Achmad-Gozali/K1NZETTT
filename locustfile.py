@@ -1,86 +1,24 @@
 """
-LOCUST + PLAYWRIGHT - Auto-crawl & capture API endpoints (FIXED v5)
+LOCUST + PLAYWRIGHT - Auto-crawl & capture API endpoints
 
-Perubahan dari v4:
-16. NEW: TIMELINE SNAPSHOT UNTUK CHART REALTIME-LOOKING
-    Ditambahkan greenlet background (mirip pola crawl_background) yang
-    mengambil snapshot ringan dari environment.stats.total tiap
-    SNAPSHOT_INTERVAL_S detik SELAMA test berjalan, dan menyimpannya
-    di memory (list TIMELINE_SNAPSHOTS) - bukan ditulis ke file
-    berkali-kali. Snapshot ini baru ditulis ke JSON SEKALI, bareng
-    hasil akhir lainnya, di listener test_stop yang sudah ada (v4).
-
-    Kenapa begini (bukan commit ke git tiap interval): commit/push
-    berkala dari GitHub Actions runner rawan race condition & rate
-    limit kalau dilakukan terlalu sering. Snapshot disimpan di memory
-    proses Locust dulu (murah, tidak ada I/O network), baru di-flush
-    ke results/latest.json satu kali di akhir sebagai array
-    "timeline". Frontend yang tanggung jawab menganimasikan array ini
-    supaya chart terasa "hidup" saat ditampilkan.
-
-    Tidak ada logic crawl/validasi/load test yang diubah - snapshot
-    murni membaca environment.stats.total (agregat real-time yang
-    memang sudah disediakan Locust secara internal), sama seperti
-    listener test_stop v4 membaca stats.entries di akhir.
-
---- (komentar v1-v4 sebelumnya tetap berlaku di bawah) ---
-15. NEW: JSON RESULT EXPORT
-    Ditambahkan listener test_stop yang mengumpulkan semua statistik
-    per event_type dari environment.stats (termasuk request_type custom
-    seperti SOFT_BLOCKED, EDGE_DOWN, AUTH_EXPIRED, dll) dan menulisnya
-    ke results/latest.json. Ini SATU-SATUNYA perubahan dari v3 - tidak
-    ada logic crawl/validasi/load test yang diubah sama sekali.
-
-    Kenapa perlu: supaya hasil test bisa dibaca oleh frontend (web UI)
-    setelah test selesai, tanpa perlu parsing HTML report Locust atau
-    akses ke proses Locust yang sudah mati.
-
-12. FIX METHOD_ERROR (405) FALSE POSITIVE:
-    Root cause: Playwright kadang nangkep method request yang TIDAK
-    mencerminkan method resmi endpoint tersebut. Contoh nyata:
-      - Prefetch/speculative request browser modern kadang pakai method
-        yang tidak standar untuk endpoint itu
-      - Request yang di-cancel/redirect di tengah jalan tapi method awal
-        sempat ke-capture on_request sebelum browser ganti approach
-      - SPA framework kadang fire request "preflight-like" tanpa OPTIONS
-        header lengkap, sehingga browser kirim GET padahal nanti yang
-        asli POST (atau sebaliknya)
-    Ini bukan salah server - ini salah asumsi di sisi crawler.
-
-    FIX: Setiap endpoint yang berhasil di-capture divalidasi ulang lewat
-    satu request "dry-run" pakai method yang sama, SEBELUM dimasukkan ke
-    ALL_ENDPOINTS. Kalau dry-run balikin 405, endpoint itu di-downgrade
-    otomatis ke GET (method paling universal & paling jarang ditolak) dan
-    divalidasi ulang sekali lagi. Kalau GET juga gagal -> endpoint di-skip
-    total, bukan dipaksa masuk pool tembak dengan method yang jelas-jelas
-    salah.
-
-13. NEW: Endpoint yang di-downgrade dicatat di SKIPPED_ENDPOINTS dengan
-    reason field, supaya kelihatan di log berapa banyak yang kena
-    auto-correct vs yang di-skip total. Statistik crawl jadi lebih jujur.
-
-14. NEW: dry-run pakai httpx (sync, ringan) bukan lewat Locust client,
-    supaya validasi ini terjadi SEKALI di fase crawl (bukan di fase load
-    test), jadi tidak menambah noise ke statistik Locust sama sekali.
-
-1. Simpan request body (POST/PUT/PATCH) hasil crawl asli -> tidak lagi kirim body kosong
-2. Simpan header penting (Authorization, Cookie, X-CSRF-Token, dll) -> tidak lagi 400/401
-   karena auth hilang
-3. Deteksi & skip endpoint yang butuh auth tapi auth-nya tidak berhasil ditangkap
-4. Pisahkan statistik: endpoint "valid" vs "skipped"
-5. Retry HANYA untuk transient status & error koneksi, bukan untuk 4xx definitif
-6. Header per-request memakai kombinasi header asli (auth) + header default
-7. Retry terakhir yang masih gagal selalu dicatat sebagai failure resmi (resp.failure())
-8. 500 dipisah kategorinya dari 502/503/504 (bug aplikasi vs overload/unavailable)
-9. Status code granular per event_type (401/403/400/404/405/409/422/451, dst)
-10. 408 dipindah ke TRANSIENT (ikut retry), semantiknya sama seperti 504
-11. Kategorisasi real-time dari resp.status_code asli, tidak ada hardcode/prediksi
+Alur:
+1. Playwright crawl target host, capture endpoint asli (method, body, header auth).
+2. Setiap endpoint divalidasi ulang lewat dry-run httpx sebelum masuk pool tembak,
+   supaya method yang salah tangkap (mis. 405 palsu) tidak ikut dites.
+3. Locust menembak endpoint yang lolos validasi, mengklasifikasikan tiap response
+   jadi request_type granular (SUCCESS, EDGE_ERROR, SERVER_ERROR, AUTH_EXPIRED, dst)
+   berdasarkan status code asli + origin header (cloudflare/vercel/dst).
+4. Snapshot ringan diambil tiap SNAPSHOT_INTERVAL_S detik untuk chart di frontend.
+5. Saat test berhenti (habis waktu ATAU di-stop manual/SIGTERM), hasil ditulis ke
+   RESULTS_PATH sekali di akhir.
 """
 
 import json
 import os
 import random
 import re
+import signal
+import sys
 import time
 from urllib.parse import urlparse
 
@@ -94,7 +32,6 @@ from playwright.sync_api import sync_playwright, Browser, Page
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 CRAWL_TIMEOUT = 30
 MAX_RETRIES = 3
-
 VALIDATION_TIMEOUT = 10
 
 SKIP_EXT = (
@@ -126,8 +63,6 @@ DEFINITIVE_STATUS_MAP = {
     451: ("LEGAL_BLOCKED", "LEGAL_BLOCKED", "diblokir karena alasan legal/region"),
 }
 
-CF_INDICATOR_HEADERS = ("cf-ray", "cf-cache-status", "cf-mitigated")
-
 SOFT_BLOCK_BODY_SIGNATURES = (
     "just a moment",
     "attention required",
@@ -150,25 +85,18 @@ SOFT_BLOCK_BODY_SIGNATURES = (
 SOFT_BLOCK_CHECK_MAX_BYTES = 20_000
 
 # Path output JSON hasil test - dibaca oleh frontend setelah test selesai.
-# Bisa dioverride lewat env var RESULTS_PATH (dipakai di workflow Actions).
 RESULTS_PATH = os.environ.get("RESULTS_PATH", "results/latest.json")
 
-# Interval snapshot timeline (detik). Dipakai buat chart di frontend -
-# semakin kecil semakin "halus" grafiknya, tapi jangan terlalu kecil
-# karena tetap jalan di greenlet yang sama dengan load test.
+# Interval snapshot timeline (detik), dipakai chart di frontend.
 SNAPSHOT_INTERVAL_S = float(os.environ.get("SNAPSHOT_INTERVAL_S", "10"))
 
 
 def detect_soft_block(resp) -> str | None:
-    """
-    Cek apakah response yang status-nya 2xx-3xx sebenarnya halaman
-    challenge/captcha/block dari WAF, bukan response asli endpoint.
-    """
+    """Cek apakah response 2xx/3xx sebenarnya halaman challenge/captcha/block."""
     try:
         content_type = ""
         if resp.headers:
             content_type = str(resp.headers.get("Content-Type", "")).lower()
-
         if "application/json" in content_type:
             return None
 
@@ -185,10 +113,10 @@ def detect_soft_block(resp) -> str | None:
         for signature in SOFT_BLOCK_BODY_SIGNATURES:
             if signature in text:
                 return signature
-
         return None
     except Exception:
         return None
+
 
 # ================== GLOBAL STATE ==================
 
@@ -196,11 +124,12 @@ ALL_ENDPOINTS: list[dict] = []
 SKIPPED_ENDPOINTS: list[dict] = []
 CRAWL_FINISHED = False
 TEST_START_TIME: float | None = None
+RESULT_WRITTEN = False  # guard supaya tidak double-write (test_stop + signal handler)
 
-# v5: snapshot timeline untuk chart. Diisi oleh greenlet snapshot_background,
-# dibaca sekali oleh on_test_stop untuk ditulis ke JSON.
 TIMELINE_SNAPSHOTS: list[dict] = []
 SNAPSHOT_RUNNING = False
+
+_ENV_REF = None  # referensi environment, dibutuhkan signal handler
 
 
 # ================== FILTER URL ==================
@@ -262,18 +191,22 @@ def classify_response_origin(resp) -> str:
             return "azure-fd"
         if "gws" in combined or "google frontend" in combined:
             return "google-cloud-lb"
-
         if server_header:
             return "origin"
-
         return "unknown"
     except Exception:
         return "unknown"
 
 
-# ================== VALIDASI METHOD (FIX 405 FALSE POSITIVE) ==================
+# ================== VALIDASI METHOD ==================
 
 def validate_endpoint_method(ep: dict, http_client: httpx.Client) -> dict | None:
+    """
+    Playwright kadang capture method yang tidak mencerminkan method resmi
+    endpoint (prefetch, request dibatalkan di tengah jalan, dsb). Setiap
+    endpoint divalidasi dry-run sebelum masuk pool tembak; kalau 405,
+    di-downgrade ke GET dan divalidasi ulang. Kalau GET juga gagal, skip.
+    """
     method = ep.get("method", "GET")
     url = ep.get("url")
     auth_headers = ep.get("auth_headers") or {}
@@ -286,15 +219,12 @@ def validate_endpoint_method(ep: dict, http_client: httpx.Client) -> dict | None
 
     def try_request(m: str) -> int | None:
         try:
-            resp = http_client.request(
-                m, url, headers=headers, timeout=VALIDATION_TIMEOUT
-            )
+            resp = http_client.request(m, url, headers=headers, timeout=VALIDATION_TIMEOUT)
             return resp.status_code
         except Exception:
             return None
 
     status = try_request(method)
-
     if status is not None and status != 405:
         return ep
 
@@ -326,8 +256,7 @@ def validate_all_endpoints(endpoints: list[dict]) -> tuple[list[dict], list[dict
                 continue
 
             if result.get("_downgraded_from"):
-                print(f"[validate] DOWNGRADE {result['_downgraded_from']} -> GET: "
-                      f"{result.get('url')}")
+                print(f"[validate] DOWNGRADE {result['_downgraded_from']} -> GET: {result.get('url')}")
 
             validated.append(result)
 
@@ -470,8 +399,7 @@ def collect_endpoints(hosts: list[str]) -> tuple[list[dict], list[dict]]:
 
         print(f"[crawl] {host} -> validasi method untuk {len(valid)} endpoint...")
         validated, method_rejected = validate_all_endpoints(valid)
-        print(f"[crawl] {host} -> lolos validasi: {len(validated)}, "
-              f"ditolak (method invalid): {len(method_rejected)}")
+        print(f"[crawl] {host} -> lolos validasi: {len(validated)}, ditolak: {len(method_rejected)}")
 
         all_valid.extend(validated)
         all_skipped.extend(skipped)
@@ -480,108 +408,19 @@ def collect_endpoints(hosts: list[str]) -> tuple[list[dict], list[dict]]:
     return all_valid, all_skipped
 
 
-# ================== LOCUST LISTENER ==================
+# ================== EXPORT HASIL ==================
 
-@events.init_command_line_parser.add_listener
-def add_custom_args(parser):
-    parser.add_argument(
-        "--target-hosts",
-        type=str,
-        env_var="TARGET_HOSTS",
-        default="",
-        help="Daftar host, dipisah koma. Contoh: https://a.com,https://b.com",
-        include_in_web_ui=True,
-    )
-
-
-def snapshot_background(environment):
+def write_results(environment) -> None:
     """
-    v5: Ambil snapshot ringan dari statistik agregat tiap SNAPSHOT_INTERVAL_S
-    detik, SELAMA load test berjalan (bukan saat crawling). Disimpan di
-    memory saja (TIMELINE_SNAPSHOTS) - tidak ada I/O file/network di sini,
-    supaya tidak mengganggu statistik Locust yang sedang berjalan.
-
-    Snapshot berhenti otomatis begitu SNAPSHOT_RUNNING di-set False oleh
-    on_test_stop, atau kalau runner sudah tidak lagi "running"/"spawning".
+    Tulis statistik akhir + timeline ke RESULTS_PATH. Dipanggil dari
+    on_test_stop (jalur normal) maupun signal handler (SIGTERM/SIGINT,
+    mis. saat user pencet STOP di frontend). Diproteksi RESULT_WRITTEN
+    supaya tidak ditulis dua kali kalau kedua jalur sempat kepanggil.
     """
-    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING
-
-    # Tunggu crawling selesai dulu supaya snapshot pertama sudah
-    # mencerminkan fase load test yang sebenarnya, bukan fase crawl.
-    waited = 0
-    while not CRAWL_FINISHED and waited < 90:
-        gevent.sleep(0.5)
-        waited += 0.5
-
-    start = time.time()
-    while SNAPSHOT_RUNNING:
-        try:
-            state = environment.runner.state if environment.runner else "unknown"
-            if state not in ("running", "spawning"):
-                break
-
-            total = environment.stats.total
-            TIMELINE_SNAPSHOTS.append({
-                "t": round(time.time() - start, 1),
-                "total_requests": total.num_requests + total.num_failures,
-                "avg_response_ms": round(total.avg_response_time, 1) if total.num_requests > 0 else 0,
-                "rps": round(total.current_rps, 2) if hasattr(total, "current_rps") else 0,
-            })
-        except Exception as e:
-            print(f"[snapshot] gagal ambil snapshot: {e}")
-
-        gevent.sleep(SNAPSHOT_INTERVAL_S)
-
-
-@events.test_start.add_listener
-def on_test_start(environment, **kwargs):
-    global ALL_ENDPOINTS, SKIPPED_ENDPOINTS, CRAWL_FINISHED, TEST_START_TIME
-    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING
-
-    TEST_START_TIME = time.time()
-    TIMELINE_SNAPSHOTS = []
-    SNAPSHOT_RUNNING = True
-
-    raw = environment.parsed_options.target_hosts.strip()
-    if not raw:
-        print("[ERROR] Target hosts kosong. Set --target-hosts atau env TARGET_HOSTS.")
-        environment.runner.quit()
+    global RESULT_WRITTEN
+    if RESULT_WRITTEN:
         return
-
-    hosts = [h.strip() for h in raw.split(",") if h.strip()]
-    hosts = [h if h.startswith(("http://", "https://")) else f"https://{h}" for h in hosts]
-
-    def crawl_background():
-        global ALL_ENDPOINTS, SKIPPED_ENDPOINTS, CRAWL_FINISHED
-        print("[crawl] Memulai Playwright crawler...")
-        valid, skipped = collect_endpoints(hosts)
-        ALL_ENDPOINTS = valid
-        SKIPPED_ENDPOINTS = skipped
-        CRAWL_FINISHED = True
-        print(f"[crawl] SELESAI. {len(ALL_ENDPOINTS)} endpoint siap ditembak, "
-              f"{len(SKIPPED_ENDPOINTS)} endpoint di-skip total.")
-
-    gevent.spawn(crawl_background)
-    gevent.spawn(snapshot_background, environment)
-
-
-@events.test_stop.add_listener
-def on_test_stop(environment, **kwargs):
-    """
-    v4: Mengumpulkan statistik akhir dari environment.stats
-    (termasuk semua request_type custom seperti SOFT_BLOCKED, EDGE_DOWN,
-    AUTH_EXPIRED, dst) dan menulisnya ke file JSON supaya bisa dibaca
-    frontend setelah proses Locust ini selesai/mati.
-
-    v5: Juga menyertakan TIMELINE_SNAPSHOTS (diisi snapshot_background
-    selama test berjalan) sebagai field "timeline", supaya frontend bisa
-    menganimasikan chart response time/RPS dari waktu ke waktu.
-
-    Tidak menyentuh logic test sama sekali - murni membaca statistik
-    yang sudah dikumpulkan Locust secara internal lewat events.request.fire().
-    """
-    global SNAPSHOT_RUNNING
-    SNAPSHOT_RUNNING = False
+    RESULT_WRITTEN = True
 
     try:
         stats = environment.stats
@@ -591,9 +430,6 @@ def on_test_stop(environment, **kwargs):
         total_requests = 0
         total_failures = 0
 
-        # stats.entries key-nya (name, method) -> StatsEntry
-        # method di sini sebenarnya request_type kita (SUCCESS, AUTH_EXPIRED, dst)
-        # karena events.request.fire(request_type=...) dipakai sebagai "method"
         for (name, method), entry in stats.entries.items():
             if entry.num_requests == 0 and entry.num_failures == 0:
                 continue
@@ -628,9 +464,6 @@ def on_test_stop(environment, **kwargs):
             "total_failures": total_failures,
             "avg_response_ms": avg_response_overall,
             "breakdown": sorted(breakdown, key=lambda x: x["count"], reverse=True),
-            # v5: history ringan buat chart di frontend. Kalau kosong
-            # (test terlalu singkat / gagal sebelum sempat snapshot),
-            # frontend cukup fallback ke tampilan tanpa animasi timeline.
             "timeline": TIMELINE_SNAPSHOTS,
         }
 
@@ -644,6 +477,107 @@ def on_test_stop(environment, **kwargs):
 
     except Exception as e:
         print(f"[export] ERROR gagal menulis hasil JSON: {e}")
+
+
+def handle_termination_signal(signum, frame):
+    """
+    Dipanggil saat GitHub Actions cancel job (SIGTERM) atau Ctrl+C lokal
+    (SIGINT). Locust event test_stop tidak selalu sempat fire kalau proses
+    langsung di-kill, jadi hasil ditulis langsung di sini sebagai fallback,
+    baru proses diminta berhenti secara normal.
+    """
+    print(f"[signal] Menerima signal {signum}, menulis hasil sebelum keluar...")
+    if _ENV_REF is not None:
+        write_results(_ENV_REF)
+    sys.exit(0)
+
+
+signal.signal(signal.SIGTERM, handle_termination_signal)
+signal.signal(signal.SIGINT, handle_termination_signal)
+
+
+# ================== LOCUST LISTENER ==================
+
+@events.init_command_line_parser.add_listener
+def add_custom_args(parser):
+    parser.add_argument(
+        "--target-hosts",
+        type=str,
+        env_var="TARGET_HOSTS",
+        default="",
+        help="Daftar host, dipisah koma. Contoh: https://a.com,https://b.com",
+        include_in_web_ui=True,
+    )
+
+
+def snapshot_background(environment):
+    """Ambil snapshot ringan dari stats agregat tiap SNAPSHOT_INTERVAL_S detik."""
+    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING
+
+    waited = 0
+    while not CRAWL_FINISHED and waited < 90:
+        gevent.sleep(0.5)
+        waited += 0.5
+
+    start = time.time()
+    while SNAPSHOT_RUNNING:
+        try:
+            state = environment.runner.state if environment.runner else "unknown"
+            if state not in ("running", "spawning"):
+                break
+
+            total = environment.stats.total
+            TIMELINE_SNAPSHOTS.append({
+                "t": round(time.time() - start, 1),
+                "total_requests": total.num_requests + total.num_failures,
+                "avg_response_ms": round(total.avg_response_time, 1) if total.num_requests > 0 else 0,
+                "rps": round(total.current_rps, 2) if hasattr(total, "current_rps") else 0,
+            })
+        except Exception as e:
+            print(f"[snapshot] gagal ambil snapshot: {e}")
+
+        gevent.sleep(SNAPSHOT_INTERVAL_S)
+
+
+@events.test_start.add_listener
+def on_test_start(environment, **kwargs):
+    global ALL_ENDPOINTS, SKIPPED_ENDPOINTS, CRAWL_FINISHED, TEST_START_TIME
+    global TIMELINE_SNAPSHOTS, SNAPSHOT_RUNNING, RESULT_WRITTEN, _ENV_REF
+
+    TEST_START_TIME = time.time()
+    TIMELINE_SNAPSHOTS = []
+    SNAPSHOT_RUNNING = True
+    RESULT_WRITTEN = False
+    _ENV_REF = environment
+
+    raw = environment.parsed_options.target_hosts.strip()
+    if not raw:
+        print("[ERROR] Target hosts kosong. Set --target-hosts atau env TARGET_HOSTS.")
+        environment.runner.quit()
+        return
+
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
+    hosts = [h if h.startswith(("http://", "https://")) else f"https://{h}" for h in hosts]
+
+    def crawl_background():
+        global ALL_ENDPOINTS, SKIPPED_ENDPOINTS, CRAWL_FINISHED
+        print("[crawl] Memulai Playwright crawler...")
+        valid, skipped = collect_endpoints(hosts)
+        ALL_ENDPOINTS = valid
+        SKIPPED_ENDPOINTS = skipped
+        CRAWL_FINISHED = True
+        print(f"[crawl] SELESAI. {len(ALL_ENDPOINTS)} endpoint siap ditembak, "
+              f"{len(SKIPPED_ENDPOINTS)} endpoint di-skip total.")
+
+    gevent.spawn(crawl_background)
+    gevent.spawn(snapshot_background, environment)
+
+
+@events.test_stop.add_listener
+def on_test_stop(environment, **kwargs):
+    global SNAPSHOT_RUNNING
+    SNAPSHOT_RUNNING = False
+    write_results(environment)
 
 
 # ================== USER BEHAVIOR ==================
@@ -720,23 +654,15 @@ class MultiHostUser(HttpUser):
                             )
                             resp.failure(
                                 f"SOFT_BLOCKED: status={status} tapi body match '{block_signature}' "
-                                f"(origin={origin_type}) - kemungkinan WAF challenge/captcha page"
+                                f"(origin={origin_type})"
                             )
                             return
 
-                        if had_rate_limit:
+                        if had_rate_limit or had_transient_error:
+                            reason = "rate-limit" if had_rate_limit else "down"
                             events.request.fire(
                                 request_type="RETRY",
-                                name=f"{host_label} [RECOVERED after {attempt}x rate-limit]",
-                                response_time=resp.elapsed.total_seconds() * 1000,
-                                response_length=len(resp.content or b""),
-                                exception=None,
-                                context={},
-                            )
-                        if had_transient_error:
-                            events.request.fire(
-                                request_type="RETRY",
-                                name=f"{host_label} [RECOVERED after {attempt}x down]",
+                                name=f"{host_label} [RECOVERED after {attempt}x {reason}]",
                                 response_time=resp.elapsed.total_seconds() * 1000,
                                 response_length=len(resp.content or b""),
                                 exception=None,

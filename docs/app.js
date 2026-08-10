@@ -12,7 +12,9 @@ const RESULTS_RAW_URL =
   `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}/results/latest.json`;
 
 const POLL_INTERVAL_MS = 5000;
-const POLL_TIMEOUT_MS = 30 * 60 * 1000; // 30 menit, samain dengan timeout job di loadtest.yml
+// Unlimited run tidak boleh kena timeout polling frontend — job GitHub
+// sendiri yang jadi batas atas (lihat timeout-minutes di loadtest.yml).
+const POLL_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6 jam
 
 // ---- elements ----
 const form = document.getElementById('test-form');
@@ -21,6 +23,7 @@ const urlError = document.getElementById('url-error');
 const userCount = document.getElementById('user-count');
 const spawnRate = document.getElementById('spawn-rate');
 const duration = document.getElementById('duration');
+const durationUnlimited = document.getElementById('duration-unlimited');
 const submitBtn = document.getElementById('submit-btn');
 const triggerError = document.getElementById('trigger-error');
 
@@ -56,6 +59,12 @@ let chartInstance = null;
 let pollTimer = null;
 let lastBreakdownRows = []; // dipakai ulang saat filter berubah
 let currentRunId = null; // dipakai tombol STOP, diisi dari response /status
+let isUnlimitedRun = false; // dipakai buat teks progress saat run tanpa batas waktu
+
+// ---- toggle input durasi saat "unlimited" dicentang ----
+durationUnlimited.addEventListener('change', () => {
+  duration.disabled = durationUnlimited.checked;
+});
 
 // ---- basic url validation ----
 function normalizeUrl(raw) {
@@ -100,7 +109,7 @@ form.addEventListener('submit', (e) => {
 
   const users = Math.max(1, parseInt(userCount.value, 10) || 20);
   const rate = Math.max(1, parseInt(spawnRate.value, 10) || 5);
-  const dur = Math.max(1, parseInt(duration.value, 10) || 3);
+  const dur = durationUnlimited.checked ? 0 : Math.max(1, parseInt(duration.value, 10) || 3);
 
   startRun(hosts, users, rate, dur);
 });
@@ -113,6 +122,7 @@ resetBtn.addEventListener('click', () => {
   }
   lastBreakdownRows = [];
   currentRunId = null;
+  isUnlimitedRun = false;
   stopMessage.classList.add('hidden');
   stopBtn.disabled = false;
   stopBtn.textContent = 'STOP';
@@ -191,8 +201,10 @@ async function startRun(hosts, users, rate, dur) {
   resultsSection.classList.add('hidden');
   runningLogLink.classList.add('hidden');
 
+  isUnlimitedRun = dur === 0;
   const targetLabel = hosts.join(', ');
-  runningTarget.textContent = `${targetLabel} · ${users} user · ramp ${rate}/s · ${dur} menit`;
+  const durLabel = isUnlimitedRun ? 'unlimited' : `${dur} menit`;
+  runningTarget.textContent = `${targetLabel} · ${users} user · ramp ${rate}/s · ${durLabel}`;
   setRunningStage('trigger');
   setStatusBar({ host: targetLabel, state: 'QUEUED', rps: '—', failures: '—' });
   currentRunId = null;
@@ -237,12 +249,18 @@ function setRunningStage(stage) {
   const stages = {
     trigger: { pct: 4, title: 'Mengirim trigger…', detail: 'Mengirim permintaan ke GitHub Actions lewat Worker.' },
     queued: { pct: 12, title: 'Menunggu antrean…', detail: 'Run sudah terdaftar, menunggu runner GitHub tersedia.' },
-    in_progress: { pct: 55, title: 'Test sedang berjalan…', detail: 'Crawling endpoint dan menembak beban di GitHub Actions runner.' },
+    in_progress: {
+      pct: isUnlimitedRun ? 55 : 55,
+      title: 'Test sedang berjalan…',
+      detail: isUnlimitedRun
+        ? 'Crawling endpoint dan menembak beban tanpa batas waktu. Tekan STOP untuk menghentikan.'
+        : 'Crawling endpoint dan menembak beban di GitHub Actions runner.',
+    },
     completed: { pct: 100, title: 'Selesai.', detail: 'Mengambil hasil akhir…' },
   };
   const s = stages[stage] || stages.trigger;
   progressBar.style.width = s.pct + '%';
-  runningPct.textContent = s.pct + '%';
+  runningPct.textContent = isUnlimitedRun && stage === 'in_progress' ? '—' : s.pct + '%';
   runningTitle.textContent = s.title;
   runningDetail.textContent = s.detail;
 }
@@ -275,11 +293,11 @@ function pollStatus(targetLabel, users, dur) {
             setStatusBar({ state: 'DONE' });
             await fetchAndShowResults(targetLabel, users, dur);
           } else if (data.conclusion === 'cancelled') {
+            // Run dihentikan lewat STOP: locustfile.py tetap menulis hasil
+            // parsial lewat signal handler, jadi tetap coba tampilkan hasil
+            // daripada langsung dianggap gagal.
             setStatusBar({ state: 'STOPPED' });
-            runningCard.classList.add('hidden');
-            formCard.classList.remove('hidden');
-            triggerError.textContent = 'Test dihentikan.';
-            triggerError.classList.remove('hidden');
+            await fetchAndShowResults(targetLabel, users, dur, { stopped: true });
           } else {
             setStatusBar({ state: 'FAILED' });
             showTriggerError(`Run selesai dengan status "${data.conclusion}". Cek log run untuk detail.`);
@@ -302,7 +320,7 @@ function pollStatus(targetLabel, users, dur) {
 }
 
 // ---- fetch hasil asli dari GitHub ----
-async function fetchAndShowResults(targetLabel, users, dur) {
+async function fetchAndShowResults(targetLabel, users, dur, { stopped = false } = {}) {
   try {
     const res = await fetch(`${RESULTS_RAW_URL}?t=${Date.now()}`);
     if (!res.ok) throw new Error(`Gagal fetch hasil (status ${res.status})`);
@@ -312,21 +330,33 @@ async function fetchAndShowResults(targetLabel, users, dur) {
       throw new Error('results/latest.json belum berisi hasil test.');
     }
 
-    showResults(data, targetLabel);
+    showResults(data, targetLabel, { stopped });
   } catch (err) {
+    if (stopped) {
+      // Run di-stop tapi hasil belum sempat ke-commit (mis. signal handler
+      // sempat menulis file tapi commit step belum jalan). Beri tahu jelas
+      // daripada menampilkan pesan generik "gagal trigger".
+      showTriggerError(
+        'Test dihentikan, tapi hasil belum sempat tersimpan ke repo. ' +
+        'Cek log run — hasil parsial biasanya tetap ada di artifact.'
+      );
+      return;
+    }
     showTriggerError(err.message || 'Gagal mengambil hasil test.');
   }
 }
 
-function showResults(data, targetLabel) {
+function showResults(data, targetLabel, { stopped = false } = {}) {
   runningCard.classList.add('hidden');
   resultsSection.classList.remove('hidden');
 
   resultTarget.textContent = data.target_hosts || targetLabel;
   const durText = data.duration_seconds ? `${Math.round(data.duration_seconds)}s` : '—';
+  const stoppedLabel = stopped ? ' · dihentikan manual' : '';
   resultMeta.textContent =
     `${durText} · ${data.endpoints_tested ?? 0} endpoint diuji` +
-    (data.endpoints_skipped ? ` · ${data.endpoints_skipped} di-skip` : '');
+    (data.endpoints_skipped ? ` · ${data.endpoints_skipped} di-skip` : '') +
+    stoppedLabel;
 
   resultGeneratedAt.textContent = formatGeneratedAt(data.generated_at);
 
@@ -477,7 +507,6 @@ const EVENT_STYLES = {
   VALIDATION_ERROR: 'bg-signal-warnBg text-signal-warn',
   METHOD_ERROR: 'bg-signal-warnBg text-signal-warn',
   CONN_ERROR: 'bg-signal-stopBg text-signal-stop',
-  // v6: klasifikasi exception connection-level yang lebih spesifik
   SSL_ERROR: 'bg-signal-stopBg text-signal-stop',
   CONN_TIMEOUT: 'bg-signal-warnBg text-signal-warn',
   CONN_RESET: 'bg-signal-stopBg text-signal-stop',

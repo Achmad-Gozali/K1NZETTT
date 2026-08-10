@@ -13,7 +13,7 @@ on:
         default: "20"
         type: string
       duration_minutes:
-        description: "Durasi test (menit)"
+        description: "Durasi test (menit). Isi 0 untuk unlimited (jalan sampai di-stop)"
         required: false
         default: "3"
         type: string
@@ -33,7 +33,11 @@ concurrency:
 jobs:
   run-loadtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Job timeout tetap ada sebagai batas keamanan mutlak (GitHub max 360 menit
+    # untuk runner publik). Durasi "unlimited" berarti Locust sendiri tidak
+    # membatasi run-time, tapi job tetap berhenti otomatis di sini kalau lupa
+    # di-stop manual.
+    timeout-minutes: 350
 
     steps:
       - name: Checkout repo
@@ -54,12 +58,18 @@ jobs:
           TARGET_HOSTS: ${{ inputs.target_hosts }}
           RESULTS_PATH: results/latest.json
         run: |
+          DURATION="${{ inputs.duration_minutes }}"
+          RUN_TIME_ARG=""
+          if [ "$DURATION" != "0" ]; then
+            RUN_TIME_ARG="--run-time ${DURATION}m"
+          fi
+
           locust -f locustfile.py \
             --target-hosts="$TARGET_HOSTS" \
             --headless \
             --users "${{ inputs.users }}" \
             --spawn-rate "${{ inputs.spawn_rate }}" \
-            --run-time "${{ inputs.duration_minutes }}m" \
+            $RUN_TIME_ARG \
             --only-summary \
             --exit-code-on-error 0
 
