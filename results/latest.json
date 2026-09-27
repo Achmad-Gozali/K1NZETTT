@@ -1,69 +1,85 @@
 {
-  "generated_at": "2026-09-27T14:08:05Z",
-  "duration_seconds": 915.97,
-  "target_hosts": "https://aligo.id/a",
+  "generated_at": "2026-09-27T15:43:31Z",
+  "duration_seconds": 910.21,
+  "target_hosts": "https://aligo.id/",
   "endpoints_tested": 4,
   "endpoints_skipped": 0,
-  "total_requests": 292108,
+  "total_requests": 1466131,
   "total_success": 0,
-  "total_failures": 292108,
-  "avg_response_ms": 72180.5,
+  "total_failures": 1466131,
+  "avg_response_ms": 1938.6,
   "breakdown": [
     {
       "event_type": "GET",
       "endpoint": "aligo.id",
-      "count": 169629,
-      "avg_ms": 115386.8,
-      "min_ms": 10.8,
-      "max_ms": 384768.4
+      "count": 949895,
+      "avg_ms": 2303.7,
+      "min_ms": 42.9,
+      "max_ms": 880276.8
+    },
+    {
+      "event_type": "EDGE_LIMIT",
+      "endpoint": "aligo.id [429/cloudflare @attempt 1]",
+      "count": 147232,
+      "avg_ms": 1779.6,
+      "min_ms": 42.5,
+      "max_ms": 483637.4
+    },
+    {
+      "event_type": "EDGE_LIMIT",
+      "endpoint": "aligo.id [429/cloudflare @attempt 2]",
+      "count": 145645,
+      "avg_ms": 854.7,
+      "min_ms": 16.4,
+      "max_ms": 4460.9
+    },
+    {
+      "event_type": "EDGE_LIMIT",
+      "endpoint": "aligo.id [429/cloudflare @attempt 3]",
+      "count": 144070,
+      "avg_ms": 707.3,
+      "min_ms": 47.0,
+      "max_ms": 4046.3
+    },
+    {
+      "event_type": "POST",
+      "endpoint": "aligo.id",
+      "count": 75370,
+      "avg_ms": 4293.2,
+      "min_ms": 38.5,
+      "max_ms": 880283.4
     },
     {
       "event_type": "CLIENT_ERROR_0",
       "endpoint": "aligo.id [0/unknown]",
-      "count": 75090,
+      "count": 2366,
       "avg_ms": 0.0,
       "min_ms": 0,
       "max_ms": 0
     },
     {
-      "event_type": "POST",
-      "endpoint": "aligo.id",
-      "count": 44439,
-      "avg_ms": 105501.5,
-      "min_ms": 11.9,
-      "max_ms": 380481.0
+      "event_type": "RETRY",
+      "endpoint": "aligo.id [RECOVERED after 2x rate-limit]",
+      "count": 1172,
+      "avg_ms": 1880.1,
+      "min_ms": 359.6,
+      "max_ms": 5195.7
     },
     {
-      "event_type": "EDGE_ERROR",
-      "endpoint": "aligo.id [500/cloudflare @attempt 1]",
-      "count": 2177,
-      "avg_ms": 37502.7,
-      "min_ms": 204.2,
-      "max_ms": 316704.7
-    },
-    {
-      "event_type": "EDGE_ERROR",
-      "endpoint": "aligo.id [500/cloudflare @attempt 2]",
-      "count": 616,
-      "avg_ms": 3211.2,
-      "min_ms": 242.1,
-      "max_ms": 11426.9
-    },
-    {
-      "event_type": "EDGE_ERROR",
-      "endpoint": "aligo.id [500/cloudflare @attempt 3]",
-      "count": 153,
-      "avg_ms": 2882.2,
-      "min_ms": 235.9,
-      "max_ms": 10812.4
+      "event_type": "RETRY",
+      "endpoint": "aligo.id [RECOVERED after 3x rate-limit]",
+      "count": 378,
+      "avg_ms": 1869.3,
+      "min_ms": 368.2,
+      "max_ms": 4224.8
     },
     {
       "event_type": "CLIENT_ERROR_522",
       "endpoint": "aligo.id [522/cloudflare]",
-      "count": 4,
-      "avg_ms": 84277.7,
-      "min_ms": 20029.0,
-      "max_ms": 273401.1
+      "count": 3,
+      "avg_ms": 20327.2,
+      "min_ms": 20173.3,
+      "max_ms": 20528.5
     }
   ],
   "timeline": [
@@ -74,508 +90,508 @@
       "rps": 0
     },
     {
-      "t": 10.2,
-      "total_requests": 91,
-      "avg_response_ms": 6661.9,
-      "rps": 0.0
+      "t": 10.1,
+      "total_requests": 0,
+      "avg_response_ms": 0,
+      "rps": 0
     },
     {
-      "t": 20.3,
-      "total_requests": 1469,
-      "avg_response_ms": 4763.6,
-      "rps": 111.7
+      "t": 20.4,
+      "total_requests": 1072,
+      "avg_response_ms": 6928.9,
+      "rps": 82.0
     },
     {
-      "t": 30.4,
-      "total_requests": 2931,
-      "avg_response_ms": 5870.0,
-      "rps": 133.4
+      "t": 30.6,
+      "total_requests": 6613,
+      "avg_response_ms": 4425.6,
+      "rps": 335.4
     },
     {
-      "t": 40.5,
-      "total_requests": 4371,
-      "avg_response_ms": 7454.9,
-      "rps": 152.5
+      "t": 40.8,
+      "total_requests": 10821,
+      "avg_response_ms": 5217.4,
+      "rps": 371.2
     },
     {
-      "t": 50.7,
-      "total_requests": 5801,
-      "avg_response_ms": 9083.4,
-      "rps": 139.1
+      "t": 50.8,
+      "total_requests": 18123,
+      "avg_response_ms": 5166.2,
+      "rps": 212.6
     },
     {
-      "t": 60.8,
-      "total_requests": 7180,
-      "avg_response_ms": 10836.8,
-      "rps": 137.6
+      "t": 61.2,
+      "total_requests": 24787,
+      "avg_response_ms": 5321.1,
+      "rps": 499.5
     },
     {
-      "t": 71.0,
-      "total_requests": 9091,
-      "avg_response_ms": 12567.1,
-      "rps": 161.6
+      "t": 71.7,
+      "total_requests": 35315,
+      "avg_response_ms": 4946.1,
+      "rps": 586.3
     },
     {
-      "t": 81.0,
-      "total_requests": 11168,
-      "avg_response_ms": 13989.0,
-      "rps": 171.0
+      "t": 81.9,
+      "total_requests": 43271,
+      "avg_response_ms": 4945.8,
+      "rps": 695.1
     },
     {
-      "t": 91.2,
-      "total_requests": 15456,
-      "avg_response_ms": 14459.2,
-      "rps": 292.6
+      "t": 93.7,
+      "total_requests": 54628,
+      "avg_response_ms": 4733.2,
+      "rps": 835.6
     },
     {
-      "t": 101.2,
-      "total_requests": 18645,
-      "avg_response_ms": 15009.8,
-      "rps": 245.9
+      "t": 104.2,
+      "total_requests": 67743,
+      "avg_response_ms": 4695.9,
+      "rps": 816.4
     },
     {
-      "t": 111.6,
-      "total_requests": 21051,
-      "avg_response_ms": 16102.1,
-      "rps": 170.4
+      "t": 114.3,
+      "total_requests": 81337,
+      "avg_response_ms": 4350.8,
+      "rps": 1076.7
     },
     {
-      "t": 121.7,
-      "total_requests": 23213,
-      "avg_response_ms": 16699.6,
-      "rps": 177.5
+      "t": 124.3,
+      "total_requests": 99059,
+      "avg_response_ms": 3869.8,
+      "rps": 1080.8
     },
     {
-      "t": 131.8,
-      "total_requests": 25095,
-      "avg_response_ms": 17742.7,
-      "rps": 136.2
+      "t": 134.3,
+      "total_requests": 113265,
+      "avg_response_ms": 3773.6,
+      "rps": 923.1
     },
     {
-      "t": 142.9,
-      "total_requests": 26613,
-      "avg_response_ms": 19321.5,
-      "rps": 116.0
+      "t": 144.4,
+      "total_requests": 129943,
+      "avg_response_ms": 3612.2,
+      "rps": 1200.7
     },
     {
-      "t": 153.2,
-      "total_requests": 28451,
-      "avg_response_ms": 20789.2,
-      "rps": 115.4
+      "t": 154.4,
+      "total_requests": 145978,
+      "avg_response_ms": 3343.2,
+      "rps": 1216.0
     },
     {
-      "t": 163.5,
-      "total_requests": 30053,
-      "avg_response_ms": 22656.8,
-      "rps": 109.3
+      "t": 164.5,
+      "total_requests": 164210,
+      "avg_response_ms": 3166.8,
+      "rps": 1146.7
     },
     {
-      "t": 173.6,
-      "total_requests": 31427,
-      "avg_response_ms": 24282.6,
-      "rps": 118.7
+      "t": 174.8,
+      "total_requests": 178638,
+      "avg_response_ms": 3055.9,
+      "rps": 1165.4
     },
     {
-      "t": 183.7,
-      "total_requests": 33010,
-      "avg_response_ms": 25929.4,
-      "rps": 106.6
+      "t": 184.8,
+      "total_requests": 198077,
+      "avg_response_ms": 2944.9,
+      "rps": 1102.7
     },
     {
-      "t": 193.9,
-      "total_requests": 34634,
-      "avg_response_ms": 27769.2,
-      "rps": 119.0
+      "t": 194.9,
+      "total_requests": 216211,
+      "avg_response_ms": 2803.6,
+      "rps": 1278.1
     },
     {
-      "t": 204.0,
-      "total_requests": 36014,
-      "avg_response_ms": 29674.9,
-      "rps": 126.9
+      "t": 206.3,
+      "total_requests": 233691,
+      "avg_response_ms": 2691.2,
+      "rps": 1269.2
     },
     {
-      "t": 214.3,
-      "total_requests": 37383,
-      "avg_response_ms": 31459.0,
-      "rps": 134.0
+      "t": 216.6,
+      "total_requests": 252335,
+      "avg_response_ms": 2620.0,
+      "rps": 1061.4
     },
     {
-      "t": 225.0,
-      "total_requests": 39081,
-      "avg_response_ms": 33149.5,
-      "rps": 147.8
+      "t": 226.7,
+      "total_requests": 270241,
+      "avg_response_ms": 2541.7,
+      "rps": 1302.6
     },
     {
-      "t": 235.1,
-      "total_requests": 46085,
-      "avg_response_ms": 40327.0,
-      "rps": 346.0
+      "t": 237.2,
+      "total_requests": 288380,
+      "avg_response_ms": 2461.9,
+      "rps": 1273.7
     },
     {
-      "t": 245.5,
-      "total_requests": 54627,
-      "avg_response_ms": 45970.5,
-      "rps": 718.8
+      "t": 247.2,
+      "total_requests": 305233,
+      "avg_response_ms": 2409.1,
+      "rps": 1125.1
     },
     {
-      "t": 256.2,
-      "total_requests": 58381,
-      "avg_response_ms": 47434.1,
-      "rps": 224.7
+      "t": 257.2,
+      "total_requests": 324516,
+      "avg_response_ms": 2347.0,
+      "rps": 1333.0
     },
     {
-      "t": 268.7,
-      "total_requests": 60798,
-      "avg_response_ms": 47779.7,
-      "rps": 157.4
+      "t": 268.2,
+      "total_requests": 342243,
+      "avg_response_ms": 2277.8,
+      "rps": 1269.3
     },
     {
-      "t": 278.7,
-      "total_requests": 62723,
-      "avg_response_ms": 49039.0,
-      "rps": 139.6
+      "t": 278.4,
+      "total_requests": 362515,
+      "avg_response_ms": 2252.0,
+      "rps": 1153.7
     },
     {
-      "t": 289.0,
-      "total_requests": 64044,
-      "avg_response_ms": 49173.4,
-      "rps": 127.8
+      "t": 288.4,
+      "total_requests": 378986,
+      "avg_response_ms": 2222.7,
+      "rps": 1253.2
     },
     {
-      "t": 299.1,
-      "total_requests": 67300,
-      "avg_response_ms": 51869.5,
-      "rps": 145.1
+      "t": 299.3,
+      "total_requests": 397077,
+      "avg_response_ms": 2201.3,
+      "rps": 1266.1
     },
     {
-      "t": 309.2,
-      "total_requests": 73177,
-      "avg_response_ms": 57942.2,
-      "rps": 514.4
+      "t": 309.3,
+      "total_requests": 415116,
+      "avg_response_ms": 2211.0,
+      "rps": 935.8
     },
     {
       "t": 319.4,
-      "total_requests": 80892,
-      "avg_response_ms": 62461.6,
-      "rps": 497.0
+      "total_requests": 434076,
+      "avg_response_ms": 2196.7,
+      "rps": 1311.8
     },
     {
       "t": 329.4,
-      "total_requests": 89560,
-      "avg_response_ms": 66377.3,
-      "rps": 547.5
+      "total_requests": 452566,
+      "avg_response_ms": 2175.8,
+      "rps": 1301.2
     },
     {
-      "t": 339.6,
-      "total_requests": 92882,
-      "avg_response_ms": 67476.1,
-      "rps": 249.0
+      "t": 339.4,
+      "total_requests": 468601,
+      "avg_response_ms": 2155.8,
+      "rps": 1330.4
     },
     {
-      "t": 350.0,
-      "total_requests": 94498,
-      "avg_response_ms": 67280.5,
-      "rps": 187.0
+      "t": 349.6,
+      "total_requests": 487470,
+      "avg_response_ms": 2134.5,
+      "rps": 1074.3
     },
     {
-      "t": 361.3,
-      "total_requests": 97511,
-      "avg_response_ms": 67733.4,
-      "rps": 234.1
+      "t": 359.8,
+      "total_requests": 505398,
+      "avg_response_ms": 2121.6,
+      "rps": 1173.4
     },
     {
-      "t": 371.4,
-      "total_requests": 98937,
-      "avg_response_ms": 68433.9,
-      "rps": 60.1
+      "t": 370.3,
+      "total_requests": 520300,
+      "avg_response_ms": 2118.3,
+      "rps": 1301.2
     },
     {
-      "t": 381.4,
-      "total_requests": 100465,
-      "avg_response_ms": 68783.1,
-      "rps": 138.0
+      "t": 380.3,
+      "total_requests": 540423,
+      "avg_response_ms": 2105.6,
+      "rps": 1106.1
     },
     {
-      "t": 391.9,
-      "total_requests": 106018,
-      "avg_response_ms": 70727.6,
-      "rps": 407.3
+      "t": 390.4,
+      "total_requests": 557975,
+      "avg_response_ms": 2086.7,
+      "rps": 1278.9
     },
     {
-      "t": 401.9,
-      "total_requests": 113766,
-      "avg_response_ms": 70871.4,
-      "rps": 451.4
+      "t": 401.2,
+      "total_requests": 576969,
+      "avg_response_ms": 2067.7,
+      "rps": 1383.7
     },
     {
-      "t": 411.9,
-      "total_requests": 121862,
-      "avg_response_ms": 70915.6,
-      "rps": 567.2
+      "t": 411.5,
+      "total_requests": 595276,
+      "avg_response_ms": 2048.3,
+      "rps": 1056.2
     },
     {
-      "t": 424.3,
-      "total_requests": 126580,
-      "avg_response_ms": 70443.7,
-      "rps": 304.6
+      "t": 421.5,
+      "total_requests": 612340,
+      "avg_response_ms": 2041.7,
+      "rps": 1232.9
     },
     {
-      "t": 434.8,
-      "total_requests": 129664,
-      "avg_response_ms": 70007.1,
-      "rps": 199.8
+      "t": 432.1,
+      "total_requests": 630766,
+      "avg_response_ms": 2031.6,
+      "rps": 1344.1
     },
     {
-      "t": 445.7,
-      "total_requests": 131780,
-      "avg_response_ms": 69763.5,
-      "rps": 127.8
+      "t": 442.1,
+      "total_requests": 648238,
+      "avg_response_ms": 2020.9,
+      "rps": 1127.2
     },
     {
-      "t": 456.0,
-      "total_requests": 133088,
-      "avg_response_ms": 69732.2,
-      "rps": 124.3
+      "t": 452.1,
+      "total_requests": 666985,
+      "avg_response_ms": 2006.6,
+      "rps": 1275.5
     },
     {
-      "t": 466.0,
-      "total_requests": 134680,
-      "avg_response_ms": 69461.3,
-      "rps": 140.9
+      "t": 462.5,
+      "total_requests": 684321,
+      "avg_response_ms": 1992.5,
+      "rps": 1331.3
     },
     {
-      "t": 476.2,
-      "total_requests": 139681,
-      "avg_response_ms": 70231.7,
-      "rps": 244.5
+      "t": 472.5,
+      "total_requests": 702521,
+      "avg_response_ms": 1975.8,
+      "rps": 978.4
     },
     {
-      "t": 486.7,
-      "total_requests": 142927,
-      "avg_response_ms": 70076.4,
-      "rps": 291.8
+      "t": 482.6,
+      "total_requests": 721497,
+      "avg_response_ms": 1962.4,
+      "rps": 1342.4
     },
     {
-      "t": 497.7,
-      "total_requests": 145739,
-      "avg_response_ms": 69571.6,
-      "rps": 168.2
+      "t": 493.4,
+      "total_requests": 739606,
+      "avg_response_ms": 1941.7,
+      "rps": 1404.0
     },
     {
-      "t": 508.5,
-      "total_requests": 147148,
-      "avg_response_ms": 69846.0,
-      "rps": 83.9
+      "t": 504.0,
+      "total_requests": 758813,
+      "avg_response_ms": 1908.3,
+      "rps": 934.1
     },
     {
-      "t": 518.6,
-      "total_requests": 148932,
-      "avg_response_ms": 69682.2,
-      "rps": 151.0
+      "t": 515.0,
+      "total_requests": 778834,
+      "avg_response_ms": 1880.7,
+      "rps": 1479.9
     },
     {
-      "t": 528.9,
-      "total_requests": 152672,
-      "avg_response_ms": 70595.2,
-      "rps": 246.9
+      "t": 525.1,
+      "total_requests": 799034,
+      "avg_response_ms": 1856.5,
+      "rps": 1269.8
     },
     {
-      "t": 539.1,
-      "total_requests": 158691,
-      "avg_response_ms": 70819.8,
-      "rps": 404.4
+      "t": 535.2,
+      "total_requests": 818343,
+      "avg_response_ms": 1825.7,
+      "rps": 1294.1
     },
     {
-      "t": 549.1,
-      "total_requests": 165052,
-      "avg_response_ms": 71425.1,
-      "rps": 462.7
+      "t": 545.3,
+      "total_requests": 836039,
+      "avg_response_ms": 1806.0,
+      "rps": 1480.7
     },
     {
-      "t": 559.1,
-      "total_requests": 173790,
-      "avg_response_ms": 71582.9,
-      "rps": 575.0
+      "t": 555.3,
+      "total_requests": 854288,
+      "avg_response_ms": 1812.2,
+      "rps": 1206.7
     },
     {
-      "t": 569.6,
-      "total_requests": 177066,
-      "avg_response_ms": 71315.3,
-      "rps": 342.6
+      "t": 565.4,
+      "total_requests": 875126,
+      "avg_response_ms": 1822.3,
+      "rps": 1476.6
     },
     {
-      "t": 581.2,
-      "total_requests": 179956,
-      "avg_response_ms": 71031.0,
-      "rps": 222.4
+      "t": 575.4,
+      "total_requests": 890671,
+      "avg_response_ms": 1827.7,
+      "rps": 1141.8
     },
     {
-      "t": 591.9,
-      "total_requests": 182877,
-      "avg_response_ms": 70830.8,
-      "rps": 174.0
+      "t": 585.4,
+      "total_requests": 912476,
+      "avg_response_ms": 1828.2,
+      "rps": 1381.0
     },
     {
-      "t": 602.0,
-      "total_requests": 183975,
-      "avg_response_ms": 70965.5,
-      "rps": 104.1
+      "t": 596.7,
+      "total_requests": 931475,
+      "avg_response_ms": 1840.9,
+      "rps": 1209.6
     },
     {
-      "t": 612.0,
-      "total_requests": 186136,
-      "avg_response_ms": 70762.2,
-      "rps": 168.9
+      "t": 606.9,
+      "total_requests": 953659,
+      "avg_response_ms": 1841.2,
+      "rps": 1189.8
     },
     {
-      "t": 624.0,
-      "total_requests": 191667,
-      "avg_response_ms": 71591.3,
-      "rps": 349.5
+      "t": 616.9,
+      "total_requests": 970069,
+      "avg_response_ms": 1850.0,
+      "rps": 1433.7
     },
     {
-      "t": 634.1,
-      "total_requests": 196473,
-      "avg_response_ms": 71790.6,
-      "rps": 276.4
+      "t": 627.2,
+      "total_requests": 988734,
+      "avg_response_ms": 1848.9,
+      "rps": 1273.6
     },
     {
-      "t": 645.4,
-      "total_requests": 200738,
-      "avg_response_ms": 71983.0,
-      "rps": 325.5
+      "t": 637.2,
+      "total_requests": 1008256,
+      "avg_response_ms": 1860.1,
+      "rps": 1126.3
     },
     {
-      "t": 656.5,
-      "total_requests": 204577,
-      "avg_response_ms": 72224.4,
-      "rps": 284.9
+      "t": 648.4,
+      "total_requests": 1027855,
+      "avg_response_ms": 1873.6,
+      "rps": 1351.0
     },
     {
-      "t": 667.5,
-      "total_requests": 208340,
-      "avg_response_ms": 71968.1,
-      "rps": 258.8
+      "t": 658.4,
+      "total_requests": 1046986,
+      "avg_response_ms": 1897.5,
+      "rps": 1140.3
     },
     {
-      "t": 677.6,
-      "total_requests": 209839,
-      "avg_response_ms": 72186.5,
-      "rps": 88.4
+      "t": 668.5,
+      "total_requests": 1066336,
+      "avg_response_ms": 1890.5,
+      "rps": 1254.3
     },
     {
-      "t": 688.0,
-      "total_requests": 215816,
-      "avg_response_ms": 72403.4,
-      "rps": 425.9
+      "t": 678.8,
+      "total_requests": 1084536,
+      "avg_response_ms": 1884.2,
+      "rps": 1527.7
     },
     {
-      "t": 698.2,
-      "total_requests": 219976,
-      "avg_response_ms": 72776.7,
-      "rps": 189.4
+      "t": 689.0,
+      "total_requests": 1102810,
+      "avg_response_ms": 1890.3,
+      "rps": 1127.1
     },
     {
-      "t": 708.4,
-      "total_requests": 225944,
-      "avg_response_ms": 72781.7,
-      "rps": 550.7
+      "t": 700.4,
+      "total_requests": 1122545,
+      "avg_response_ms": 1889.3,
+      "rps": 1364.0
     },
     {
-      "t": 718.6,
-      "total_requests": 231688,
-      "avg_response_ms": 72912.9,
-      "rps": 399.2
+      "t": 710.4,
+      "total_requests": 1145039,
+      "avg_response_ms": 1900.2,
+      "rps": 1351.4
     },
     {
-      "t": 730.6,
-      "total_requests": 238548,
-      "avg_response_ms": 72577.9,
-      "rps": 447.7
+      "t": 721.9,
+      "total_requests": 1166133,
+      "avg_response_ms": 1885.8,
+      "rps": 1425.4
     },
     {
-      "t": 741.5,
-      "total_requests": 241628,
-      "avg_response_ms": 72242.0,
-      "rps": 203.3
+      "t": 732.1,
+      "total_requests": 1185969,
+      "avg_response_ms": 1882.1,
+      "rps": 1094.3
     },
     {
-      "t": 752.2,
-      "total_requests": 243957,
-      "avg_response_ms": 72138.4,
-      "rps": 71.0
+      "t": 743.6,
+      "total_requests": 1206253,
+      "avg_response_ms": 1885.6,
+      "rps": 1386.8
     },
     {
-      "t": 762.5,
-      "total_requests": 244799,
-      "avg_response_ms": 72108.6,
-      "rps": 172.9
+      "t": 753.7,
+      "total_requests": 1226354,
+      "avg_response_ms": 1885.3,
+      "rps": 1160.4
     },
     {
-      "t": 772.8,
-      "total_requests": 247921,
-      "avg_response_ms": 72101.3,
-      "rps": 206.9
+      "t": 763.8,
+      "total_requests": 1244980,
+      "avg_response_ms": 1891.2,
+      "rps": 1371.6
     },
     {
-      "t": 782.8,
-      "total_requests": 252102,
-      "avg_response_ms": 72414.7,
-      "rps": 235.8
+      "t": 773.8,
+      "total_requests": 1263138,
+      "avg_response_ms": 1892.6,
+      "rps": 1405.4
     },
     {
-      "t": 792.8,
-      "total_requests": 254916,
-      "avg_response_ms": 72569.8,
-      "rps": 243.5
+      "t": 783.9,
+      "total_requests": 1280768,
+      "avg_response_ms": 1892.4,
+      "rps": 1065.6
     },
     {
-      "t": 803.7,
-      "total_requests": 260956,
-      "avg_response_ms": 72542.9,
-      "rps": 419.1
+      "t": 793.9,
+      "total_requests": 1300655,
+      "avg_response_ms": 1902.8,
+      "rps": 1453.4
     },
     {
-      "t": 813.8,
-      "total_requests": 265074,
-      "avg_response_ms": 72587.6,
-      "rps": 267.3
+      "t": 804.0,
+      "total_requests": 1318100,
+      "avg_response_ms": 1893.2,
+      "rps": 1290.8
     },
     {
-      "t": 823.8,
-      "total_requests": 269679,
-      "avg_response_ms": 72619.6,
-      "rps": 305.3
+      "t": 814.1,
+      "total_requests": 1339849,
+      "avg_response_ms": 1893.3,
+      "rps": 1151.6
     },
     {
-      "t": 834.6,
-      "total_requests": 274014,
-      "avg_response_ms": 72647.2,
-      "rps": 364.4
+      "t": 824.8,
+      "total_requests": 1355254,
+      "avg_response_ms": 1898.3,
+      "rps": 1367.4
     },
     {
-      "t": 845.1,
-      "total_requests": 277314,
-      "avg_response_ms": 72584.8,
-      "rps": 180.5
+      "t": 834.8,
+      "total_requests": 1374205,
+      "avg_response_ms": 1900.9,
+      "rps": 1057.8
     },
     {
-      "t": 855.8,
-      "total_requests": 282175,
-      "avg_response_ms": 72456.1,
-      "rps": 281.9
+      "t": 844.9,
+      "total_requests": 1394167,
+      "avg_response_ms": 1913.4,
+      "rps": 1351.0
     },
     {
-      "t": 865.8,
-      "total_requests": 284051,
-      "avg_response_ms": 72522.4,
-      "rps": 144.6
+      "t": 855.4,
+      "total_requests": 1411522,
+      "avg_response_ms": 1907.6,
+      "rps": 1365.0
     },
     {
-      "t": 876.5,
-      "total_requests": 288231,
-      "avg_response_ms": 72323.9,
-      "rps": 338.0
+      "t": 865.4,
+      "total_requests": 1431758,
+      "avg_response_ms": 1925.6,
+      "rps": 1376.5
     }
   ]
 }
